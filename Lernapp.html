@@ -1,0 +1,2180 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Schulexpress</title>
+    <!-- Tailwind CSS für schickes Design -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- CSS für sauberes Drucken (Protokoll & Urkunden) -->
+    <style>
+        @media print {
+            body {
+                background: white !important;
+                padding: 0 !important;
+                margin: 0 !important;
+            }
+            body > div {
+                border: none !important;
+                box-shadow: none !important;
+                margin: 0 !important;
+                padding: 0 !important;
+                max-width: 100% !important;
+            }
+            .bg-indigo-600,
+            #screen-home > *:not(#printable-log),
+            #screen-challenge-select,
+            #screen-quiz,
+            #screen-path,
+            #screen-result,
+            #screen-cert-box,
+            #screen-horseshoe-box,
+            #screen-lockdown {
+                display: none !important;
+            }
+            #printable-log {
+                display: block !important;
+                visibility: visible !important;
+                position: static !important;
+                width: 100% !important;
+                border: none !important;
+                background: white !important;
+                box-shadow: none !important;
+                margin: 0 !important;
+                padding: 0 !important;
+            }
+            #printable-log .overflow-y-auto {
+                max-height: none !important;
+                overflow: visible !important;
+            }
+            tr {
+                page-break-inside: avoid !important;
+            }
+            .no-print {
+                display: none !important;
+            }
+        }
+
+        /* Urkunden-Druckmodus */
+        @media print {
+            body.mode-cert * {
+                display: none !important;
+            }
+            body.mode-cert #printable-certificate,
+            body.mode-cert #printable-certificate * {
+                display: block !important;
+                visibility: visible !important;
+            }
+            body.mode-cert #printable-certificate {
+                position: absolute !important;
+                left: 0 !important;
+                top: 0 !important;
+                width: 100% !important;
+                background: white !important;
+                padding: 40px !important;
+            }
+        }
+    </style>
+</head>
+<body class="bg-indigo-50 font-sans min-h-screen flex flex-col items-center justify-center p-4">
+
+    <!-- App Container -->
+    <div class="max-w-md w-full bg-white rounded-3xl shadow-xl overflow-hidden border-4 border-indigo-200 my-4 relative">
+        
+        <!-- Header -->
+        <div class="bg-indigo-600 p-6 text-white text-center rounded-b-3xl shadow-md relative z-10">
+            <h1 class="text-3xl font-extrabold tracking-wide">🚀 Schulexpress</h1>
+        </div>
+
+        <!-- STRAF- SPERRBILDSCHIRM (Lockdown) -->
+        <div id="screen-lockdown" class="p-8 text-center hidden bg-red-50 min-h-[400px] flex-col items-center justify-center">
+            <div class="text-6xl mb-4">🚨</div>
+            <h2 class="text-2xl font-black text-red-700 mb-4">SICHERHEITSSPERRE</h2>
+            <div class="bg-white border-2 border-red-300 p-5 rounded-2xl shadow-inner mb-6 text-red-900 font-bold text-sm leading-relaxed">
+                Unerlaubter Zugriff festgestellt. Admin erhält 5€ zahlbar bei der kommenden Taschengeldausgabe.
+            </div>
+            <button onclick="unlockApp()" class="w-full bg-red-600 hover:bg-red-700 text-white font-bold py-3 px-6 rounded-xl shadow-lg transition text-sm">
+                🔓 System entsperren (Master-PIN)
+            </button>
+        </div>
+
+        <!-- Startbildschirm / Hauptmenü -->
+        <div id="screen-home" class="p-6 text-center">
+            
+            <!-- Lernzeit-Startbuttons mit Live-Timer -->
+            <div class="mb-6 bg-indigo-50 p-4 rounded-2xl border-2 border-indigo-200 shadow-sm">
+                <div class="flex justify-between items-center mb-2">
+                    <h3 class="font-bold text-indigo-900 text-sm">⏱️ Lernzeit starten:</h3>
+                    <span id="home-timer-display" class="bg-white text-indigo-700 font-mono font-bold px-2.5 py-1 rounded-lg border border-indigo-200 text-sm hidden">--:--</span>
+                </div>
+                <div class="flex gap-3">
+                    <button onclick="startGlobalSession(15)" class="w-1/2 bg-green-500 hover:bg-green-600 text-white font-bold py-3 px-2 rounded-xl shadow-lg transition text-sm flex items-center justify-center gap-1">
+                        <span>🟢</span> <span>15 Min</span>
+                    </button>
+                    <button onclick="startCustomSession()" class="w-1/2 bg-red-500 hover:bg-red-600 text-white font-bold py-3 px-2 rounded-xl shadow-lg transition text-sm flex items-center justify-center gap-1">
+                        <span>🔴</span> <span>Individuell / Test</span>
+                    </button>
+                </div>
+                <p id="session-status" class="text-xs text-gray-500 mt-2">Wähle eine Lernzeit oder übe frei unten:</p>
+            </div>
+
+            <!-- Wochen-Challenge -->
+            <div class="mb-6 bg-gradient-to-r from-amber-500 to-yellow-500 p-4 rounded-2xl border-2 border-yellow-300 shadow-md text-white text-left">
+                <div class="flex justify-between items-center mb-1">
+                    <h3 class="font-black text-base flex items-center gap-1.5"><span>🏆</span> <span>Wochen-Challenge</span></h3>
+                    <button onclick="adminResetChallenge()" title="Challenge zurücksetzen (PIN)" class="bg-white/20 hover:bg-white/30 text-white p-1 rounded-lg text-xs transition">⚙️ Reset</button>
+                </div>
+                <p class="text-xs text-yellow-100 mb-3">Schaffe 15 von 20 Fragen und gewinne bis zu 10 €!</p>
+                <div id="challenge-menu-info" class="text-xs font-bold mb-3 bg-black/10 p-2 rounded-xl">
+                    Freigeschaltet: Level X von 10
+                </div>
+                <button onclick="tryOpenChallenge()" class="w-full bg-white hover:bg-yellow-50 text-amber-900 font-bold py-2.5 px-4 rounded-xl shadow transition text-sm text-center">
+                    🚀 Zur Challenge-Übersicht
+                </button>
+            </div>
+
+            <h2 class="text-lg font-bold text-gray-700 mb-3">Wähle deinen Lernbereich:</h2>
+            <div class="space-y-4 mb-6">
+                
+                <!-- Mathematik -->
+                <div class="bg-blue-50 p-4 rounded-2xl border-2 border-blue-200">
+                    <h3 class="font-bold text-blue-800 mb-2 text-base">🔢 Mathematik (60+ Fragen)</h3>
+                    <div class="space-y-2">
+                        <button onclick="openCategory('Mathe', false)" class="w-full bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded-xl shadow transition text-sm">
+                            📚 Alle Fragen lernen
+                        </button>
+                        <button onclick="openCategory('Mathe', true)" class="w-full bg-blue-700 hover:bg-blue-800 text-white font-bold py-2 px-4 rounded-xl shadow transition text-sm">
+                            ⏱️ Test (10 zufällige Fragen)
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Deutsch -->
+                <div class="bg-green-50 p-4 rounded-2xl border-2 border-green-200">
+                    <h3 class="font-bold text-green-800 mb-2 text-base">📚 Deutsch (60+ Fragen)</h3>
+                    <div class="space-y-2">
+                        <button onclick="openCategory('Deutsch', false)" class="w-full bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-4 rounded-xl shadow transition text-sm">
+                            📚 Alle Fragen lernen
+                        </button>
+                        <button onclick="openCategory('Deutsch', true)" class="w-full bg-green-700 hover:bg-green-800 text-white font-bold py-2 px-4 rounded-xl shadow transition text-sm">
+                            ⏱️ Test (10 zufällige Fragen)
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Sachkunde -->
+                <div class="bg-amber-50 p-4 rounded-2xl border-2 border-amber-200">
+                    <h3 class="font-bold text-amber-800 mb-2 text-base">🌍 Sachkunde (60+ Fragen)</h3>
+                    <div class="space-y-2">
+                        <button onclick="openCategory('Sachkunde', false)" class="w-full bg-amber-500 hover:bg-amber-600 text-white font-bold py-2 px-4 rounded-xl shadow transition text-sm">
+                            📚 Alle Fragen lernen
+                        </button>
+                        <button onclick="openCategory('Sachkunde', true)" class="w-full bg-amber-700 hover:bg-amber-800 text-white font-bold py-2 px-4 rounded-xl shadow transition text-sm">
+                            ⏱️ Test (10 zufällige Fragen)
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Spielerisches Lernen -->
+                <div class="bg-purple-50 p-4 rounded-2xl border-2 border-purple-200">
+                    <h3 class="font-bold text-purple-800 mb-2 text-base">🎮 Spielerisches Lernen</h3>
+                    <div class="space-y-3">
+                        <!-- Hufeisen-Box über dem Rallye Button -->
+                        <button onclick="openHorseshoeBox()" class="w-full bg-gradient-to-r from-amber-600 to-orange-500 hover:from-amber-700 hover:to-orange-600 text-white font-bold py-2.5 px-4 rounded-xl shadow transition text-sm flex items-center justify-center gap-2">
+                            <span>🐴</span> <span>Meine Hufeisen-Box (<span id="menu-horseshoe-count">0</span> 🧲)</span>
+                        </button>
+
+                        <button onclick="tryStartPathGame('rally')" class="w-full bg-purple-600 hover:bg-purple-700 text-white font-bold py-2 px-4 rounded-xl shadow transition text-sm">
+                            🏎️ Mathe Rallye (100 Aufgaben)
+                        </button>
+                        <button onclick="tryStartPathGame('horse')" class="w-full bg-purple-700 hover:bg-purple-800 text-white font-bold py-2 px-4 rounded-xl shadow transition text-sm">
+                            🐎 Rechen-Pferderennen (14 Level)
+                        </button>
+                        <!-- Button für die Urkunden-Box -->
+                        <button onclick="openCertificateBox()" class="w-full bg-amber-500 hover:bg-amber-600 text-white font-bold py-2 px-4 rounded-xl shadow transition text-sm flex items-center justify-center gap-1.5">
+                            <span>📁</span> <span>Meine Urkunden-Box</span>
+                        </button>
+                        <button onclick="resetHorseProgress()" class="w-full bg-gray-200 hover:bg-gray-300 text-gray-700 font-bold py-1.5 px-3 rounded-xl transition text-xs">
+                            🔄 Pferderennen auf Level 1 zurücksetzen
+                        </button>
+                    </div>
+                </div>
+
+            </div>
+
+            <!-- Lern-Zettel (Protokoll ohne Kalender) -->
+            <div id="printable-log" class="bg-amber-50 border-4 border-dashed border-amber-300 p-4 rounded-3xl text-left shadow-sm">
+                <div class="flex justify-between items-center mb-3">
+                    <h3 class="font-bold text-amber-900 text-sm">📋 Lern-Protokoll (Heute)</h3>
+                    <div class="flex items-center gap-2">
+                        <!-- Mülleimer-Symbol zum Löschen -->
+                        <button onclick="clearAllLogs()" title="Notizen löschen" class="no-print bg-white hover:bg-red-50 text-red-600 border border-amber-300 p-1.5 rounded-lg text-xs transition">
+                            🗑️
+                        </button>
+                        <!-- Drucken-Button -->
+                        <button onclick="printLog()" title="Protokoll drucken" class="no-print bg-blue-600 hover:bg-blue-700 text-white px-2.5 py-1 rounded-lg text-xs font-bold transition flex items-center gap-1">
+                            <span>🖨️</span> <span>Drucken</span>
+                        </button>
+                    </div>
+                </div>
+
+                <div id="log-meta-info" class="text-xs text-amber-800 font-semibold mb-2">
+                    Letzte Aktivität: --:-- Uhr
+                </div>
+
+                <!-- Tabelle für Aufgaben, Lösungen und Häkchen/X -->
+                <div class="bg-white rounded-xl border border-amber-200 overflow-hidden max-h-48 overflow-y-auto">
+                    <table class="w-full text-xs text-left text-gray-700">
+                        <thead class="bg-amber-100 text-amber-900 font-bold border-b border-amber-200">
+                            <tr>
+                                <th class="p-2">Aufgabe</th>
+                                <th class="p-2">Lösung</th>
+                                <th class="p-2 text-center">Status</th>
+                            </tr>
+                        </thead>
+                        <tbody id="log-table-body">
+                            <tr>
+                                <td colspan="3" class="p-3 text-center text-gray-400">Noch keine Daten für heute vorhanden.</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+        </div>
+
+        <!-- Hufeisen-Box Bildschirm -->
+        <div id="screen-horseshoe-box" class="p-6 text-center hidden">
+            <div class="flex justify-between items-center mb-4">
+                <h2 class="text-xl font-black text-amber-700">🐴 Hufeisen-Box</h2>
+                <button onclick="returnToMenu()" class="text-xs bg-gray-100 hover:bg-gray-200 text-gray-600 font-bold py-1 px-3 rounded-lg transition">🏠 Hauptmenü</button>
+            </div>
+            
+            <div class="bg-gradient-to-r from-amber-100 to-orange-100 border-2 border-amber-300 p-4 rounded-2xl mb-4 shadow-inner">
+                <p class="text-xs text-amber-800 font-bold mb-1">Dein aktuelles Guthaben:</p>
+                <p id="horseshoe-total-display" class="text-3xl font-black text-amber-900">0 🧲 Hufeisen</p>
+            </div>
+
+            <!-- Hufeisen-Verdienst Übersicht für Lina -->
+            <div class="bg-purple-50 border-2 border-purple-200 p-3 rounded-2xl mb-4 text-left text-[11px] text-purple-900 shadow-sm">
+                <p class="font-bold mb-1">📈 So verdienst du Hufeisen in der Rallye:</p>
+                <p>• <strong>Aufgabe 1 – 10:</strong> 4 🧲 pro Aufgabe</p>
+                <p>• <strong>Aufgabe 11 – 20:</strong> 6 🧲 pro Aufgabe</p>
+                <p>• <strong>Aufgabe 21 – 40:</strong> 7 🧲 pro Aufgabe</p>
+                <p>• <strong>Aufgabe 41 – 60:</strong> 8 🧲 pro Aufgabe</p>
+                <p>• <strong>Aufgabe 61 – 80:</strong> 11 🧲 pro Aufgabe</p>
+                <p>• <strong>Aufgabe 81 – 99:</strong> 13 🧲 pro Aufgabe</p>
+                <p>• <strong>Aufgabe 100 (Finale):</strong> <strong>1.000 🧲</strong> auf einen Schlag! 🚀</p>
+            </div>
+
+            <div class="bg-white border-2 border-amber-200 p-4 rounded-2xl mb-4 text-left text-xs space-y-2 shadow-sm">
+                <p class="font-bold text-amber-900 mb-1">🎁 Wofür Hufeisen einlösen?</p>
+                <div id="rewards-list-display" class="space-y-1">
+                    <!-- Wird dynamisch befüllt -->
+                </div>
+                <p class="text-[10px] text-gray-500 italic mt-2">Einlösung regulär einmal monatlich zum 15. (mit PIN umgehbar).</p>
+            </div>
+
+            <div class="space-y-2">
+                <button onclick="redeemHorseshoes()" class="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-2.5 px-4 rounded-xl shadow transition text-xs">
+                    🎁 Hufeisen einlösen
+                </button>
+                <button onclick="editRewardsList()" class="w-full bg-amber-100 hover:bg-amber-200 text-amber-800 font-bold py-2 px-4 rounded-xl transition text-xs">
+                    ⚙️ Prämien-Shop bearbeiten (Admin-PIN)
+                </button>
+                <button onclick="adminDeleteHorseshoes()" class="w-full bg-red-100 hover:bg-red-200 text-red-700 font-bold py-2 px-4 rounded-xl transition text-xs">
+                    🗑️ Punktgenau löschen (Admin-PIN)
+                </button>
+                <button onclick="resetRallyProgress()" class="w-full bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold py-1.5 px-3 rounded-xl transition text-xs mt-2">
+                    🔄 Mathe-Rallye Checkpoint zurücksetzen (auf 1)
+                </button>
+            </div>
+        </div>
+
+        <!-- Urkunden-Box Bildschirm -->
+        <div id="screen-cert-box" class="p-6 text-center hidden">
+            <div class="flex justify-between items-center mb-4">
+                <h2 class="text-xl font-black text-amber-700">📁 Meine Urkunden-Box</h2>
+                <button onclick="returnToMenu()" class="text-xs bg-gray-100 hover:bg-gray-200 text-gray-600 font-bold py-1 px-3 rounded-lg transition">🏠 Hauptmenü</button>
+            </div>
+            <p class="text-xs text-gray-600 mb-4">Hier sind alle deine gewonnenen Pferderennen-Urkunden gespeichert:</p>
+            
+            <div id="cert-grid" class="grid grid-cols-2 gap-3 mb-6 max-h-72 overflow-y-auto p-1">
+                <!-- Wird dynamisch befüllt -->
+            </div>
+
+            <div class="border-t-2 border-gray-100 pt-4">
+                <button onclick="adminDeleteCertificates()" class="text-xs bg-red-100 hover:bg-red-200 text-red-700 font-bold py-2 px-4 rounded-xl transition w-full">
+                    🗑️ Urkunden löschen (Admin-PIN)
+                </button>
+            </div>
+        </div>
+
+        <!-- Challenge Level-Auswahl Bildschirm -->
+        <div id="screen-challenge-select" class="p-6 text-center hidden">
+            <div class="flex justify-between items-center mb-4">
+                <h2 class="text-xl font-black text-amber-700">🏆 Wochen-Challenge</h2>
+                <button onclick="returnToMenu()" class="text-xs bg-gray-100 hover:bg-gray-200 text-gray-600 font-bold py-1 px-3 rounded-lg transition">🏠 Hauptmenü</button>
+            </div>
+            <p class="text-xs text-gray-600 mb-4">Wähle dein freigeschaltetes Level (20 Fragen pro Level, 15 Richtige zum Bestehen):</p>
+            <div id="challenge-levels-grid" class="grid grid-cols-2 gap-3 mb-4">
+                <!-- Wird per JS befüllt -->
+            </div>
+        </div>
+
+        <!-- Quiz-Bildschirm -->
+        <div id="screen-quiz" class="p-6 hidden">
+            <div class="flex justify-between items-center mb-2 text-sm font-semibold text-gray-500">
+                <span id="quiz-subject-title" class="uppercase tracking-wider text-indigo-600">Fach</span>
+                <button onclick="returnToMenuWithSave()" class="text-xs bg-gray-100 hover:bg-gray-200 text-gray-600 font-bold py-1 px-3 rounded-lg transition">🏠 Hauptmenü</button>
+            </div>
+            
+            <div class="flex justify-between items-center mb-4 text-xs font-bold text-gray-400">
+                <span id="quiz-timer-display" class="bg-indigo-100 text-indigo-800 px-2 py-1 rounded-md text-sm font-mono hidden">⏱️ 00:00</span>
+                <span id="question-counter">Frage 1 von X</span>
+                <button id="btn-hint" onclick="toggleHint()" class="hidden bg-yellow-400 hover:bg-yellow-500 text-yellow-900 font-bold px-3 py-1 rounded-lg text-xs shadow transition">
+                    ❓ Rechen-Tipp
+                </button>
+            </div>
+
+            <!-- Joker-Button für Wochen-Challenge -->
+            <div id="challenge-joker-container" class="mb-3 hidden">
+                <button onclick="useChallengeJoker()" id="btn-challenge-joker" class="w-full bg-amber-100 hover:bg-amber-200 text-amber-800 border-2 border-amber-300 font-bold py-2 px-3 rounded-xl text-xs transition flex items-center justify-center gap-1 shadow-sm">
+                    <span>🔄</span> <span id="joker-text">Frage tauschen (Noch 3 übrig)</span>
+                </button>
+            </div>
+            
+            <div id="pause-banner" class="hidden bg-red-100 border border-red-400 text-red-700 px-3 py-1 rounded-lg text-xs font-bold text-center mb-3">
+                ⏸️ Inaktivität (30 Sek.): Zeit pausiert! (Löse eine Aufgabe zum Fortsetzen)
+            </div>
+
+            <div id="hint-box" class="hidden bg-yellow-50 border-2 border-yellow-300 p-3 rounded-2xl mb-4 text-xs text-yellow-800">
+                <p class="font-bold mb-1">💡 Tipp für den Rechenweg:</p>
+                <p id="hint-text">Hier steht der Tipp...</p>
+            </div>
+
+            <div class="bg-indigo-50 p-4 rounded-2xl mb-6 min-h-[90px] flex items-center justify-center">
+                <h3 id="question-text" class="text-lg font-bold text-gray-800 text-center">Fragetext kommt hier...</h3>
+            </div>
+
+            <!-- Multiple Choice ODER Direkteingabe -->
+            <div id="options-container" class="space-y-3"></div>
+
+            <div id="direct-input-container" class="space-y-4 hidden">
+                <div>
+                    <label class="block text-xs font-bold text-gray-600 mb-1">Trage das Ergebnis selbst ein:</label>
+                    <input type="text" id="quiz-user-input" class="w-full border-2 border-indigo-200 focus:border-indigo-600 p-3 rounded-xl text-center text-xl font-bold outline-none" placeholder="Antwort...">
+                </div>
+                <button onclick="checkDirectInputAnswer()" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 px-6 rounded-xl shadow-lg transition">
+                    Antwort prüfen ➔
+                </button>
+                <p id="quiz-feedback" class="text-center text-sm font-bold mt-2 min-h-[24px]"></p>
+            </div>
+        </div>
+
+        <!-- Rechen-Pfad / Rallye Bildschirm -->
+        <div id="screen-path" class="p-6 hidden">
+            <div class="flex justify-between items-center mb-2 text-sm font-semibold text-gray-500">
+                <span id="path-title" class="uppercase tracking-wider text-purple-600">Spielerisches Lernen</span>
+                <button onclick="returnToMenu()" class="text-xs bg-gray-100 hover:bg-gray-200 text-gray-600 font-bold py-1 px-3 rounded-lg transition">🏠 Hauptmenü</button>
+            </div>
+
+            <div class="flex justify-between items-center mb-4 text-xs font-bold text-purple-500">
+                <span id="path-level-indicator" class="bg-purple-200 text-purple-800 px-2 py-0.5 rounded-md">Level 1</span>
+                <span id="path-step-counter">Aufgabe 1 von 100</span>
+            </div>
+
+            <div class="bg-purple-50 border-2 border-purple-200 p-5 rounded-2xl mb-6 text-center shadow-inner">
+                <p class="text-xs text-purple-600 font-bold mb-1">Berechne das nächste Feld:</p>
+                <h3 id="path-task-text" class="text-2xl font-black text-purple-900 my-2">2 + 3 = ?</h3>
+            </div>
+
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-xs font-bold text-gray-600 mb-1">Trage das Ergebnis ein:</label>
+                    <input type="number" id="path-user-input" class="w-full border-2 border-purple-200 focus:border-purple-600 p-3 rounded-xl text-center text-xl font-bold outline-none" placeholder="Ergebnis...">
+                </div>
+                <button onclick="checkPathStep()" class="w-full bg-purple-600 hover:bg-purple-700 text-white font-bold py-3 px-6 rounded-xl shadow-lg transition">
+                    Weiter zum nächsten Feld ➔
+                </button>
+                <p id="path-feedback" class="text-center text-sm font-bold mt-2 min-h-[24px]"></p>
+            </div>
+        </div>
+
+        <!-- Ergebnis-Bildschirm -->
+        <div id="screen-result" class="p-6 text-center hidden">
+            <div class="text-5xl mb-3">📊</div>
+            <h2 id="result-title" class="text-2xl font-bold text-gray-800 mb-2">Lern-Ergebnis</h2>
+            <div id="res-status-badge" class="inline-block px-4 py-1.5 rounded-full text-sm font-bold mb-4 shadow-sm">Status</div>
+            
+            <div class="bg-indigo-50 border-2 border-indigo-200 p-4 rounded-2xl mb-6 text-left space-y-2 text-sm text-gray-700 shadow-inner">
+                <p>⏱️ <strong>Lernzeit:</strong> <span id="res-time">0 Min</span></p>
+                <p>📂 <strong>Gegangene Kategorien:</strong> <span id="res-categories">Keine</span></p>
+                <p>📝 <strong>Erledigte Aufgaben:</strong> <span id="res-total">0</span></p>
+                <p>✅ <strong>Richtig gelöst:</strong> <span id="res-correct" class="text-green-600 font-bold">0</span></p>
+                <!-- Wird eingefügt, falls Verbot gewählt wurde -->
+                <div id="penalty-notice" class="hidden mt-2 pt-2 border-t border-red-200 text-red-700 font-bold text-xs">
+                    ⚠️ Teilnehmer hat sich entschieden für: ab 20 Uhr Handy- und PC-Verbot
+                </div>
+            </div>
+
+            <!-- Zusätzliche Buttons für "Nicht erreicht" -->
+            <div id="not-reached-actions" class="space-y-2 mb-4 hidden">
+                <button onclick="continueUntilTarget()" class="w-full bg-amber-500 hover:bg-amber-600 text-white font-bold py-2.5 px-4 rounded-xl shadow transition text-sm">
+                    🔄 Erneut versuchen (Weiterspielen bis 16 Richtige)
+                </button>
+                <button onclick="choosePenaltyBan()" class="w-full bg-red-600 hover:bg-red-700 text-white font-bold py-2.5 px-4 rounded-xl shadow transition text-sm">
+                    🚫 20 Uhr Handy- und PC-Verbot
+                </button>
+            </div>
+
+            <!-- Button für Urkunde -->
+            <button id="btn-print-certificate" onclick="printHorseCertificate(latestFinishedHorseLevel)" class="w-full bg-amber-500 hover:bg-amber-600 text-white font-bold py-3 px-6 rounded-xl shadow-lg transition mb-3 flex items-center justify-center gap-2 hidden">
+                <span>🖨️</span> <span id="cert-btn-text">Urkunde drucken</span>
+            </button>
+
+            <button onclick="returnToMenu()" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 px-6 rounded-xl shadow-lg transition">
+                Zurück zum Hauptmenü
+            </button>
+        </div>
+
+    </div>
+
+    <!-- UNSICHTBARE DRUCK-URKUNDE -->
+    <div id="printable-certificate" class="hidden">
+        <div style="border: 8px double #6b21a8; padding: 40px; text-align: center; border-radius: 24px; font-family: sans-serif; background: #faf5ff;">
+            <div id="cert-horse-icon" style="font-size: 50px; margin-bottom: 5px;">🐴</div>
+            <h1 style="font-size: 30px; color: #6b21a8; margin: 0; font-weight: 900;">RECHEN-DIPLOM</h1>
+            <p id="cert-subtitle" style="font-size: 16px; color: #7e22ce; font-weight: bold; margin-top: 3px;">Offizielle Urkunde für Rechen-Pferderennen</p>
+            
+            <hr style="border: 2px solid #c084fc; margin: 20px 0;">
+            
+            <p style="font-size: 15px; color: #374151; margin: 5px 0;">Diese Ehrenurkunde wird mit Stolz verliehen an:</p>
+            <div style="font-size: 26px; color: #4c1d95; font-weight: 900; margin: 10px 0; text-decoration: underline;">
+                Lina Blankenburg
+            </div>
+            
+            <p style="font-size: 14px; color: #4b5563; margin: 5px 0;">für das erfolgreiche Bestehen von:</p>
+            <div id="cert-level-display" style="font-size: 24px; color: #581c87; font-weight: 900; margin: 10px 0; background: #f3e8ff; padding: 10px; border-radius: 12px; border: 2px dashed #a855f7;">
+                LEVEL X
+            </div>
+
+            <p style="font-size: 14px; color: #4b5563; font-style: italic; margin: 15px 0;">
+                „Mit Fleiß, Köpfchen und schnellen Hufeisen hast du diesen Galopp gemeistert!“
+            </p>
+            
+            <div style="margin-top: 40px; display: flex; justify-content: space-between; align-items: flex-end; font-size: 13px; color: #6b7280;">
+                <div>
+                    <p id="cert-date-display" style="margin: 0; font-weight: bold; color: #374151;">Datum: --.--.----</p>
+                </div>
+                <div style="text-align: center;">
+                    <div id="cert-funny-sig" style="font-family: 'Courier New', monospace; font-weight: bold; font-size: 14px; color: #581c87; margin-bottom: 3px;">Unterschrift</div>
+                    <div style="border-bottom: 2px solid #9ca3af; width: 220px; margin-bottom: 3px;"></div>
+                    <p style="margin: 0; font-size: 11px;">(Geprüft & abgesegnet)</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- JavaScript Logik -->
+    <script>
+        const quizData = {
+            Mathe: [
+                { question: "Was ist das Ergebnis von 376 + 245?", options: ["621", "611", "511", "601"], correct: 0, hint: "Addiere zuerst die Hunderter (300 + 200), dann die Zehner (70 + 40) und zum Schluss die Einer (6 + 5)." },
+                { question: "Wie viel sind 8 mal 9?", options: ["72", "64", "81", "56"], correct: 0, hint: "Nutze den Trick mit der 10: Rechne 8 mal 10 und ziehe danach einmal die 8 ab." },
+                { question: "Runde die Zahl 482 auf die nächste Hunderterstelle:", options: ["400", "500", "480", "490"], correct: 1, hint: "Betrachte die Ziffer auf der Zehnerstelle (die 8). Ist sie 5 oder größer, wird aufgerundet." },
+                { question: "Ein Bauer hat 144 Äpfel und packt sie in Tüten à 12 Stück. Wie viele Tüten braucht er?", options: ["10", "11", "12", "14"], correct: 2, hint: "Überlege dir, welche Zahl mit sich selbst multipliziert genau 144 ergibt." },
+                { question: "Wie viel Milliliter sind 3 Liter und 50 Milliliter?", options: ["350 ml", "3050 ml", "3500 ml", "30050 ml"], correct: 1, hint: "1 Liter sind genau 1000 Milliliter." },
+                { question: "Was ist das Ergebnis von 1000 - 438?", options: ["562", "572", "662", "552"], correct: 0, hint: "Subtrahiere in Schritten: Zieh erst die Hunderter ab, dann die Zehner und zuletzt die Einer." },
+                { question: "Rechne aus: 7 mal 60", options: ["420", "430", "360", "490"], correct: 0, hint: "Multipliziere zuerst die Basis-Zahlen ohne Null und hänge die Null danach an." },
+                { question: "Wie viele Grad hat ein rechter Winkel?", options: ["45 Grad", "90 Grad", "180 Grad", "360 Grad"], correct: 1, hint: "Ein Viertel eines Vollkreises." },
+                { question: "Ein Quadrat hat eine Seitenlänge von 6 cm. Wie groß ist der Umfang?", options: ["12 cm", "36 cm", "24 cm", "18 cm"], correct: 2, hint: "Addiere alle 4 gleich langen Seiten zusammen." },
+                { question: "Was ist die Hälfte von 750?", options: ["325", "375", "350", "400"], correct: 1, hint: "Teile Hunderter und Zehner getrennt durch 2." },
+                { question: "Berechne: 630 : 9", options: ["70", "60", "80", "90"], correct: 0, hint: "Finde die passende Einmaleins-Aufgabe und hänge die Null an." },
+                { question: "Verdopple die Zahl 480:", options: ["960", "940", "860", "980"], correct: 0, hint: "Verdopple erst 400 und dann 80 getrennt." },
+                { question: "Wie viele Minuten hat eine Dreiviertelstunde?", options: ["30 Minuten", "45 Minuten", "15 Minuten", "50 Minuten"], correct: 1, hint: "Drei Viertel von 60 Minuten." },
+                { question: "Ergänze zum nächsten Tausender: 540 + ___ = 1000", options: ["460", "560", "440", "360"], correct: 0, hint: "Ergänze erst auf 600, dann auf 1000." },
+                { question: "Welche Zahl liegt genau in der Mitte von 300 und 400?", options: ["340", "360", "350", "325"], correct: 2, hint: "Nimm die Hälfte des Abstands zwischen den Zahlen." },
+                { question: "Rechne aus: 12 mal 5", options: ["50", "55", "60", "65"], correct: 2, hint: "Zerlege 12 in 10 und 2." },
+                { question: "Wie viele Gramm sind 2,5 Kilogramm?", options: ["250 g", "2500 g", "25000 g", "25 g"], correct: 1, hint: "1 kg sind 1000 g." },
+                { question: "Wie viele Eckpunkte hat ein Würfel?", options: ["6", "8", "12", "4"], correct: 1, hint: "4 Ecken oben, 4 Ecken unten." },
+                { question: "Was ist das Ergebnis von 81 : 9?", options: ["8", "7", "9", "6"], correct: 2, hint: "Kleine Einmaleins-Quadratzahl." },
+                { question: "Runde die Zahl 3624 auf Tausender:", options: ["3000", "4000", "3600", "3500"], correct: 1, hint: "Schau auf die Hunderterstelle." },
+                { question: "Rechne: 150 + 280", options: ["430", "420", "410", "440"], correct: 0, hint: "Addiere in Teilschritten." },
+                { question: "Wie viele Kanten hat ein Quader?", options: ["8", "10", "12", "16"], correct: 2, hint: "Oben, unten und dazwischen." },
+                { question: "Berechne: 40 mal 50", options: ["200", "2000", "20000", "2500"], correct: 1, hint: "Ziffern multiplizieren und Nullen anhängen." },
+                { question: "Wie viel ist 3/4 von 100?", options: ["25", "50", "75", "80"], correct: 2, hint: "Teile durch 4 und nimm das mal 3." },
+                { question: "Wie viele Sekunden hat eine Minute?", options: ["60", "100", "120", "30"], correct: 0, hint: "Feste Maßeinheit." },
+                { question: "Rechne: 1000 - 85", options: ["915", "925", "815", "905"], correct: 0, hint: "Zieh erst 100 ab und korrigiere." },
+                { question: "Was ergibt 6 mal 7?", options: ["42", "48", "36", "49"], correct: 0, hint: "Einmaleins-Reim." },
+                { question: "Ein Kilometer entspricht wie vielen Metern?", options: ["100 m", "500 m", "1000 m", "10000 m"], correct: 2, hint: "Kilo bedeutet Tausend." },
+                { question: "Berechne: 48 : 6", options: ["7", "8", "9", "6"], correct: 1, hint: "Umkehraufgabe nutzen." },
+                { question: "Welche Form hat 4 gleich lange Seiten und 4 rechte Winkel?", options: ["Rechteck", "Quadrat", "Dreieck", "Trapez"], correct: 1, hint: "Alle Seiten gleich lang." },
+                { question: "Lena kauft 3 Hefte für je 1,50 Euro und einen Stift für 2,00 Euro. Wechselgeld bei 10 €?", options: ["3,50 €", "4,00 €", "5,50 €", "6,50 €"], correct: 0, hint: "Gesamtkosten von 10 € abziehen." },
+                { question: "In einem Bus sitzen 42 Fahrgäste. 14 steigen aus, 9 steigen ein. Wie viele sind drin?", options: ["37", "47", "35", "29"], correct: 0, hint: "Schritt für Schritt rechnen." },
+                { question: "Tim hat 48 Murmeln und teilt sie an sich und 3 Freunde auf.", options: ["10", "12", "16", "8"], correct: 1, hint: "Achtung: 4 Personen insgesamt!" },
+                { question: "Filmbeginn 14:45 Uhr, Dauer 95 Minuten. Wann Ende?", options: ["16:10 Uhr", "16:20 Uhr", "16:00 Uhr", "16:30 Uhr"], correct: 1, hint: "95 Min in Stunden umwandeln." },
+                { question: "Sarah läuft täglich 750m hin und zurück. Weg in 5 Schultagen?", options: ["3750 m", "7500 m", "5000 m", "3500 m"], correct: 1, hint: "Hin- und Rückweg mal 5 Tage." },
+                { question: "24 Autos auf Parkplatz, je 4 Reifen plus 1 Ersatzreifen. Gesamte Reifen?", options: ["96", "120", "100", "144"], correct: 1, hint: "5 Reifen pro Auto." },
+                { question: "Garten 15m lang, 10m breit. Mindestlänge Zaun?", options: ["50 m", "25 m", "150 m", "40 m"], correct: 0, hint: "Umfang berechnen." },
+                { question: "60 Bonbons, 3 Viertel aufgegessen. Rest?", options: ["15", "20", "30", "45"], correct: 0, hint: "1 Viertel bleibt übrig." },
+                { question: "Fahrrad kostet 280 €, Mia hat 135 €, kriegt 75 € geschenkt. Fehlt noch?", options: ["70 €", "80 €", "60 €", "90 €"], correct: 0, hint: "Geld zusammenzählen und abziehen." },
+                { question: "6 Packungen Erdbeeren à 500 Gramm. Gewicht in kg?", options: ["2 kg", "3 kg", "4 kg", "6 kg"], correct: 1, hint: "Gramm in kg umwandeln." },
+                { question: "Was ist das Produkt aus 15 und 4?", options: ["60", "45", "50", "70"], correct: 0, hint: "Produkt bedeutet Malnehmen." },
+                { question: "Teile 96 durch 8:", options: ["10", "11", "12", "14"], correct: 2, hint: "Aufteilen in 80 und 16." },
+                { question: "Wie viel Gramm sind 3 kg und 450 g?", options: ["3450 g", "3045 g", "3540 g", "4350 g"], correct: 0, hint: "Kilogramm in Gramm umrechnen." },
+                { question: "Buch kostet 12,99 €, Bezahlung mit 20 €. Wechselgeld?", options: ["6,01 €", "7,01 €", "7,11 €", "6,11 €"], correct: 1, hint: "Ergänzungsmethode nutzen." },
+                { question: "Wie viele Tage hat ein Schaltjahr?", options: ["365", "366", "364", "367"], correct: 1, hint: "Februar hat einen Tag mehr." },
+                { question: "Was ist das Ergebnis von 500 - 125?", options: ["375", "385", "475", "365"], correct: 0, hint: "Schrittweise subtrahieren." },
+                { question: "Rechne: 25 mal 4", options: ["100", "75", "125", "150"], correct: 0, hint: "Vier mal eine Viertelstunde." },
+                { question: "Wie viel ist die Hälfte von 1000?", options: ["500", "250", "400", "600"], correct: 0, hint: "Teile 1000 durch 2." },
+                { question: "Rechne: 999 + 1", options: ["1000", "100", "10000", "990"], correct: 0, hint: "Der nächste Tausender." },
+                { question: "Wie viele Stunden hat ein Tag?", options: ["12", "24", "48", "60"], correct: 1, hint: "Ein voller Tag- und Nacht-Zyklus." },
+                { question: "Was ist das Dreifache von 15?", options: ["45", "30", "50", "40"], correct: 0, hint: "15 mal 3." },
+                { question: "Teile 144 durch 12:", options: ["10", "11", "12", "14"], correct: 2, hint: "Quadratzahl des kleinen Einmaleins." },
+                { question: "Runde 749 auf Hunderter:", options: ["700", "800", "750", "740"], correct: 0, hint: "Schau auf die Zehnerstelle (4)." },
+                { question: "Rechne: 80 mal 8", options: ["640", "600", "720", "560"], correct: 0, hint: "8 mal 8 und Null anhängen." },
+                { question: "Wie viel sind 1/2 Liter in ml?", options: ["500 ml", "250 ml", "100 ml", "1000 ml"], correct: 0, hint: "Die Hälfte von 1000." },
+                { question: "Subtrahiere 33 von 99:", options: ["66", "55", "77", "44"], correct: 0, hint: "99 - 33." },
+                { question: "Berechne: 125 + 125", options: ["250", "200", "300", "225"], correct: 0, hint: "Ein Viertel von 1000." },
+                { question: "Wie viele Cent sind 5 Euro?", options: ["50 Cent", "500 Cent", "5000 Cent", "5 Cent"], correct: 1, hint: "1 Euro = 100 Cent." },
+                { question: "Was ist das Produkt aus 9 und 9?", options: ["81", "72", "90", "64"], correct: 0, hint: "9 mal 9." },
+                { question: "Teile 100 durch 5:", options: ["20", "25", "15", "10"], correct: 0, hint: "Wie viel mal passt 5 in 100?" }
+            ],
+            Deutsch: [
+                { question: "Welche Wortart ist das Wort 'schnell'?", options: ["Nomen", "Verb", "Adjektiv", "Artikel"], correct: 2, hint: "Es beschreibt, wie etwas getan wird (Wiewort)." },
+                { question: "Wie schreibt man die Mehrzahl von 'Fahrrad'?", options: ["Fahrräder", "Fahrrads", "Fahrräders", "Fahrräds"], correct: 0, hint: "Mit Umlaut ä." },
+                { question: "Welcher Satz steht im Präteritum (Vergangenheit)?", options: ["Ich laufe.", "Ich bin gelaufen.", "Ich lief.", "Ich werde laufen."], correct: 2, hint: "Die einfache Vergangenheit." },
+                { question: "Welches Wort wird mit 'ie' geschrieben?", options: ["Flage", "Wiese", "Spal", "Bane"], correct: 1, hint: "Ein langes i in Wiese." },
+                { question: "Was ist das Gegenteil von 'hell'?", options: ["Dunkel", "Leise", "Weich", "Kalt"], correct: 0, hint: "Wenn kein Licht da ist." },
+                { question: "Was ist ein anderes Wort für 'Nomen'?", options: ["Tunwort", "Wiewort", "Namenwort", "Bindewort"], correct: 2, hint: "Namen von Personen, Tieren oder Sachen." },
+                { question: "Welcher Satz ist ein Fragesatz?", options: ["Du kommst morgen.", "Kommst du morgen?", "Komm morgen!", "Ich hoffe du kommst."], correct: 1, hint: "Endet mit einem Fragezeichen." },
+                { question: "Wie nennt man die Höhepunkteigenschaft einer Erlebniserzählung?", options: ["Einleitung", "Spannung", "Hauptteil", "Schluss"], correct: 1, hint: "Der spannendste Moment." },
+                { question: "Wie lautet der Fachbegriff für ein Tunwort?", options: ["Nomen", "Verb", "Adjektiv", "Pronomen"], correct: 1, hint: "Was man tun kann." },
+                { question: "Welches der folgenden Wörter ist ein Nomen und wird großgeschrieben?", options: ["Freundschaft", "freundlich", "fahren", "frisch"], correct: 0, hint: "Man kann 'die' davor setzen." },
+                { question: "Was bedeutet die Abkürzung 'bzw.'?", options: ["beziehungsweise", "beispielsweise", "beim zweiten", "bezüglich"], correct: 0, hint: "Oder genauer gesagt." },
+                { question: "Welches Wort ist richtig geschrieben?", options: ["Bäkerai", "Bäckerei", "Bekerai", "Bäckerai"], correct: 1, hint: "Kommt von Backen." },
+                { question: "Welcher Satz steht im Futur (Zukunft)?", options: ["Ich lerne.", "Ich lernte.", "Ich habe gelernt.", "Ich werde lernen."], correct: 3, hint: "Verwendet 'werden'." },
+                { question: "Mit welcher Frage sucht man nach dem Subjekt im Satz?", options: ["Wer oder was?", "Wen oder was?", "Wem?", "Wo?"], correct: 0, hint: "Der Wer-Fall." },
+                { question: "Welches Wort ist ein zusammengesetztes Nomen?", options: ["Haustür", "Spielen", "Wunderschön", "Aufstehen"], correct: 0, hint: "Haus + Tür." },
+                { question: "Was ist das Gegenteil von 'laut'?", options: ["ruhig", "leise", "still", "sanft"], correct: 1, hint: "Kaum zu hören." },
+                { question: "Wie lautet die Grundform (Infinitiv) von 'ging'?", options: ["gegangen", "gehen", "geht", "ginge"], correct: 1, hint: "Die Nennform auf -en." },
+                { question: "Welches Satzzeichen steht am Ende eines Ausrufesatzes?", options: ["Punkt", "Fragezeichen", "Ausrufezeichen", "Komma"], correct: 2, hint: "Ein Strich mit Punkt darunter." },
+                { question: "Welcher Buchstabe fehlt in: 'Kat_e'?", options: ["z", "tz", "s", "c"], correct: 0, hint: "Kurzer Selbstlaut vor der Lücke." },
+                { question: "Mit welcher Frage sucht man nach dem Akkusativobjekt?", options: ["Wer oder was?", "Wen oder was?", "Wem?", "Woher?"], correct: 1, hint: "Der Wen-Fall." },
+                { question: "Welches Wort ist ein Pronomen (Fürwort)?", options: ["er", "groß", "Lauf", "schnell"], correct: 0, hint: "Ersetzt ein Nomen." },
+                { question: "Was ist ein Synonym (ähnliches Wort) für 'großartig'?", options: ["toll", "klein", "traurig", "schlecht"], correct: 0, hint: "Etwas, das sehr gut ist." },
+                { question: "Wie viele Silben hat das Wort 'Elefant'?", options: ["2", "3", "4", "5"], correct: 1, hint: "E-le-fant." },
+                { question: "Wie lautet die 1. Steigerungsstufe von 'gut'?", options: ["guter", "besser", "am besten", "schöner"], correct: 1, hint: "Vergleichsform." },
+                { question: "Welches Wort schreibt man mit Doppel-s (ss)?", options: ["Schlo__", "Stra__e", "Gro__", "Fren__"], correct: 0, hint: "Nach kurzem Selbstlaut." },
+                { question: "Was gehört zwingend zur wörtlichen Rede?", options: ["Fragezeichen", "Anführungszeichen", "Ausrufezeichen", "Klammern"], correct: 1, hint: "Gänsefüßchen." },
+                { question: "Welches Wort ist eine Konjunktion (Bindewort)?", options: ["weil", "Hund", "rennen", "schön"], correct: 0, hint: "Verbindet Sätze." },
+                { question: "Welches dieser Wörter ist KEIN Adjektiv?", options: ["Laufen", "schnell", "bunt", "klug"], correct: 0, hint: "Das ist ein Verb." },
+                { question: "Wie lautet die Mehrzahl von 'Museum'?", options: ["Museums", "Museen", "Musee", "Museener"], correct: 1, hint: "Unregelmäßige Mehrzahl auf -en." },
+                { question: "Wie lautet die Mehrzahl von 'Satz'?", options: ["Sätze", "Satze", "Satzes", "Sätze"], correct: 0, hint: "Mit Umlaut." },
+                { question: "Welcher Fall (Kasus) ist der 4. Fall?", options: ["Nominativ", "Genitiv", "Dativ", "Akkusativ"], correct: 3, hint: "Wen-Fall." },
+                { question: "Wie schreibt man die Mehrzahl von 'Schiff'?", options: ["Schiffe", "Schiffs", "Schiffes", "Schieff"], correct: 0, hint: "Mit -e am Ende." },
+                { question: "Welcher Buchstabe am Wortende wird weich ausgesprochen (Auslautverhärtung)? Beispiel: Hund -> Hun[t]. Welcher Buchstabe steht dort?", options: ["d", "t", "b", "g"], correct: 0, hint: "Der Buchstabe für den Hund." },
+                { question: "Wie nennt man Wörter, die gleich klingen, aber unterschiedliche Bedeutung haben (z. B. Waise / Weise)?", options: ["Homophone", "Synonyme", "Antonyme", "Nomen"], correct: 0, hint: "Gleicher Klang." },
+                { question: "In welchem Satz ist das Wort 'heute' ein Adverb?", options: ["Heute regnet es.", "Der Tag heute ist schön.", "Heute ist ein Fest.", "Heute ist toll."], correct: 0, hint: "Umstandsbestimmung der Zeit." },
+                { question: "Welches Tier ist ein Nomen?", options: ["Laufen", "Katze", "schön", "und"], correct: 1, hint: "Ein Lebewesen." },
+                { question: "Wie viele Selbstlaute (Vokale) hat das Alphabet?", options: ["3", "5", "7", "8"], correct: 1, hint: "A, E, I, O, U." },
+                { question: "Welches Wort ist ein Verb?", options: ["Baum", "spielen", "blau", "schnell"], correct: 1, hint: "Etwas, das man tun kann." },
+                { question: "Welches Satzzeichen gehört an das Ende eines normalen Aussagesatzes?", options: ["Punkt", "Fragezeichen", "Ausrufezeichen", "Komma"], correct: 0, hint: "Der klassische Punkt." },
+                { question: "Wie nennt man die Mehrzahl eines Wortes noch?", options: ["Singular", "Plural", "Artikel", "Pronomen"], correct: 1, hint: "Mehrzahl-Fachbegriff." },
+                { question: "Was ist die Einzahl eines Wortes?", options: ["Plural", "Singular", "Tempus", "Kasus"], correct: 1, hint: "Einzahl-Fachbegriff." },
+                { question: "Welches Wort ist ein Adjektiv?", options: ["Tisch", "laufen", "groß", "wir"], correct: 2, hint: "Beschreibt eine Eigenschaft." },
+                { question: "Wie schreibt man den Satzanfang?", options: ["immer klein", "immer groß", "egal", "nur bei Nomen groß"], correct: 1, hint: "Erster Buchstabe eines Satzes." },
+                { question: "Welches Wort enthält ein 'ch' nach einem hellen Laut (wie in ich)?", options: ["Buch", "Kuchen", "Licht", "Dach"], correct: 2, hint: "Der ich-Laut." },
+                { question: "Welches Wort enthält einen Umlaut?", options: ["Haus", "Maus", "Häuser", "Hund"], correct: 2, hint: "Enthält ä, ö oder ü." },
+                { question: "Was ist ein Artikel?", options: ["der, die, das", "laufen, gehen", "und, aber", "ich, du, er"], correct: 0, hint: "Begleiter des Nomens." },
+                { question: "Welches Wort ist ein Begleiter?", options: ["eine", "schön", "rennen", "gestern"], correct: 0, hint: "Unbestimmter Artikel." },
+                { question: "Wie schreibt man 'hundert' als Nomen (die Zahl)?", options: ["Hundert", "hundert", "Hunderd", "hunderd"], correct: 0, hint: "Als Nomen großgeschrieben." },
+                { question: "Welches Wort ist richtig getrennt? (Ham-ster)", options: ["Ham-ster", "Ha-mster", "Hams-ter", "Hamst-er"], correct: 0, hint: "Nachsprech-Silben." },
+                { question: "Wie heißt die Vergangenheit von 'gehen'?", options: ["gegangen", "ging", "gehe", "wird gehen"], correct: 1, hint: "Präteritum-Form." },
+                { question: "Welche Zeitform drückt die Zukunft aus?", options: ["Präsens", "Präteritum", "Futur", "Perfekt"], correct: 2, hint: "Mit 'werden'." },
+                { question: "Was ist das Gegenteil von 'groß'?", options: ["klein", "dick", "schwer", "lang"], correct: 0, hint: "Nicht groß." },
+                { question: "Wie nennt man Wörter mit gegensätzlicher Bedeutung?", options: ["Synonyme", "Antonyme", "Homophone", "Nomen"], correct: 1, hint: "Gegenteile." },
+                { question: "Welches Wort ist ein Prädikat im Satz 'Der Hund bellt'?", options: ["Der", "Hund", "bellt", "keines"], correct: 2, hint: "Die Tätigkeit im Satz." },
+                { question: "Welches Wort ist ein Artikel?", options: ["ein", "groß", "Auto", "fahren"], correct: 0, hint: "Ein / eine." },
+                { question: "Wie viele Mitlaute (Konsonanten) hat das deutsche Alphabet ungefähr?", options: ["5", "10", "21", "26"], correct: 2, hint: "Alle außer den 5 Vokalen." },
+                { question: "Welches Wort reimt sich auf 'Haus'?", options: ["Maus", "Hund", "Katze", "Baum"], correct: 0, hint: "Klingt am Ende gleich." },
+                { question: "Wie schreibt man den Namen eines Wochentages?", options: ["immer klein", "immer groß", "wie Nomen groß", "egal"], correct: 2, hint: "Namen von Wochentagen sind Nomen." },
+                { question: "Was ist ein Satzglied?", options: ["Ein einzelner Buchstabe", "Ein Baustein des Satzes", "Ein Komma", "Eine Silbe"], correct: 1, hint: "Kann im Satz verschoben werden." },
+                { question: "Welcher Fall ist der 3. Fall?", options: ["Nominativ", "Genitiv", "Dativ", "Akkusativ"], correct: 2, hint: "Wem-Fall." }
+            ],
+            Sachkunde: [
+                { question: "Wie heißt die Hauptstadt von Deutschland?", options: ["München", "Hamburg", "Berlin", "Köln"], correct: 2, hint: "Liegt an der Spree." },
+                { question: "Aus welchen Himmelsrichtungen besteht der Spruch 'Nie Ohne Seife Waschen'?", options: ["Nord, Ost, Süd, West", "Norden, Osten, Süden, Westen", "Neu, Oben, Süd, West", "Nichts Ohne Sinn"], correct: 1, hint: "Die vier Haupthimmelsrichtungen." },
+                { question: "Welches Organ pumpt das Blut durch unseren Körper?", options: ["Die Lunge", "Das Herz", "Der Magen", "Die Leber"], correct: 1, hint: "Sitzt links in der Brust." },
+                { question: "Welches Bundesland ist das flächenmäßig größte in Deutschland?", options: ["Nordrhein-Westfalen", "Baden-Württemberg", "Bayern", "Niedersachsen"], correct: 2, hint: "Im Süden gelegen mit Hauptstadt München." },
+                { question: "Auf welchem Kontinent liegt Deutschland?", options: ["Asien", "Afrika", "Europa", "Amerika"], correct: 2, hint: "Unser Heimatkontinent." },
+                { question: "Wie viele Bundesländer hat Deutschland?", options: ["12", "14", "16", "18"], correct: 2, hint: "Es sind genau sechzehn." },
+                { question: "Welches Gas atmen wir Menschen hauptsächlich aus der Luft ein, um zu leben?", options: ["Stickstoff", "Sauerstoff", "Kohlendioxid", "Wasserstoff"], correct: 1, hint: "O2." },
+                { question: "Was passiert im Wasserkreislauf, wenn Wasser erwärmt wird?", options: ["Es gefriert", "Es verdunstet", "Es wird schwerer", "Es verschwindet"], correct: 1, hint: "Es steigt als Dampf auf." },
+                { question: "Welches dieser Tiere ist ein Säugetier?", options: ["Wal", "Haifisch", "Adler", "Krokodil"], correct: 0, hint: "Lebt im Wasser, atmet aber Luft." },
+                { question: "Welcher Planet steht der Sonne am nächsten?", options: ["Erde", "Mars", "Merkur", "Venus"], correct: 2, hint: "Der heißeste innere Planet." },
+                { question: "Wozu dient eine Kompassnadel?", options: ["Zeigt nach Süden", "Zeigt nach Norden", "Zeigt die Uhrzeit", "Zeigt das Wetter"], correct: 1, hint: "Weist zum Magnetpol." },
+                { question: "Was benötigt ein Feuer, um brennen zu können?", options: ["Sauerstoff, Brennstoff, Wärme", "Wasser, Holz, Luft", "Schatten, Wind, Holz", "Erde, Licht, Wasser"], correct: 0, hint: "Das Verbrennungsdreieck." },
+                { question: "Wie nennt man Tiere, die sich nur von Pflanzen ernähren?", options: ["Fleischfresser", "Pflanzenfresser", "Allesfresser", "Aasfresser"], correct: 1, hint: "Essen Gras und Blätter." },
+                { question: "Bei welcher Temperatur gefriert Wasser zu Eis?", options: ["10°C", "0°C", "-10°C", "5°C"], correct: 1, hint: "Der Nullpunkt." },
+                { question: "Wie heißt unser Planetensystem?", options: ["Milchstraße", "Sonnensystem", "Galaxie", "Universum"], correct: 1, hint: "Benannt nach unserem Stern." },
+                { question: "Welcher lange Fluss fließt durch viele Bundesländer Deutschlands?", options: ["Rhein", "Donau", "Elbe", "Mosel"], correct: 0, hint: "Fließt unter anderem durch Köln und Düsseldorf." },
+                { question: "Was ist das größte Sinnesorgan des Menschen?", options: ["Das Auge", "Die Haut", "Die Zunge", "Das Ohr"], correct: 1, hint: "Hüllt unseren ganzen Körper ein." },
+                { question: "Welcher Nadelbaum verliert im Herbst seine Nadeln?", options: ["Tanne", "Fichte", "Lärche", "Kiefer"], correct: 2, hint: "Die einzige europäische Nadelbaumart mit Nadelwurf." },
+                { question: "Welches Verkehrsschild ist dreieckig und steht auf der Spitze?", options: ["Vorfahrt gewähren", "Stopp-Schild", "Einbahnstraße", "Fußgängerüberweg"], correct: 0, hint: "Gefahrzeichen / Vorfahrtsregelung." },
+                { question: "Wie nennt man den Vorgang, bei dem Pflanzen mithilfe von Sonnenlicht Sauerstoff herstellen?", options: ["Fotosynthese", "Verdunstung", "Keimung", "Atmung"], correct: 0, hint: "Licht-Synthese." },
+                { question: "Welcher Fluss ist der längste Fluss der Erde?", options: ["Amazonas", "Nil", "Mississippi", "Rhein"], correct: 1, hint: "Fließt durch Ägypten." },
+                { question: "Welche Getreideart wird besonders häufig für Brot verwendet?", options: ["Weizen", "Reis", "Mais", "Hirse"], correct: 0, hint: "Daraus backt man helles Brot." },
+                { question: "Wie nennt man Tiere, die tagsüber schlafen und nachts aktiv sind?", options: ["Tagaktiv", "Nachtaktiv", "Winterschläfer", "Zugvögel"], correct: 1, hint: "Wie Eulen oder Fledermäuse." },
+                { question: "Mit welchem Gerät misst man die Temperatur?", options: ["Barometer", "Thermometer", "Tachometer", "Lineal"], correct: 1, hint: "Zeigt Grad Celsius an." },
+                { question: "Welche Energiequelle gehört zu den erneuerbaren Energien?", options: ["Erdöl", "Kohle", "Sonnenenergie", "Erdgas"], correct: 2, hint: "Kraft der Sonne." },
+                { question: "Was schützt unsere Zähne am besten vor Karies?", options: ["Süßigkeiten essen", "Regelmäßiges Zähneputzen", "Fruchtsaft trinken", "Gar nichts"], correct: 1, hint: "Mit Zahnbürste und Paste." },
+                { question: "In welchem Bundesland liegt die Landeshauptstadt Stuttgart?", options: ["Bayern", "Hessen", "Baden-Württemberg", "Rheinland-Pfalz"], correct: 2, hint: "Unser Heimatbundesland." },
+                { question: "Warum können Vögel fliegen?", options: ["Weil sie leicht sind und Flügel mit Auftrieb haben", "Weil sie Arme haben", "Weil sie keine Knochen haben", "Weil sie sehr schnell rennen"], correct: 0, hint: "Leichter Knochenbau und Aerodynamik." },
+                { question: "Welche Notrufnummer wählt man bei der Feuerwehr in Deutschland?", options: ["110", "112", "114", "118"], correct: 1, hint: "Die europaweite Notrufnummer." },
+                { question: "Was zeigt das Barometer an?", options: ["Luftdruck", "Temperatur", "Windgeschwindigkeit", "Regenmenge"], correct: 0, hint: "Wetterinstrument für Druck." },
+                { question: "Wer war der erste Bundeskanzler der Bundesrepublik Deutschland?", options: ["Konrad Adenauer", "Willy Brandt", "Helmut Kohl", "Olaf Scholz"], correct: 0, hint: "Aus den Anfangsjahren der BRD." },
+                { question: "Welches ist das kleinste Bundesland in Deutschland nach Fläche?", options: ["Bremen", "Saarland", "Berlin", "Hamburg"], correct: 0, hint: "Freie Hansestadt Bremen." },
+                { question: "Aus welchen Farben besteht die deutsche Flagge von oben nach unten?", options: ["Schwarz-Rot-Gold", "Rot-Weiß-Schwarz", "Schwarz-Gold-Rot", "Gold-Rot-Schwarz"], correct: 0, hint: "Die Bundesfarben." },
+                { question: "Wie nennt man den längsten Tag im Jahr?", options: ["Sommersonnenwende", "Tagundnachtgleiche", "Wintersonnenwende", "Frühlingsanfang"], correct: 0, hint: "Im Juni." },
+                { question: "Welcher Ozean liegt zwischen Europa und Amerika?", options: ["Atlantischer Ozean", "Pazifischer Ozean", "Indischer Ozean", "Arktischer Ozean"], correct: 0, hint: "Der Atlantik." },
+                { question: "Wie viele Kontinente hat die Erde?", options: ["5", "6", "7", "8"], correct: 2, hint: "Afrika, Antarktis, Asien, Europa, Nordamerika, Australien/Ozeanien, Südamerika." },
+                { question: "Welches Tier legt Eier und hat Federn?", options: ["Säugetier", "Vogel", "Reptil", "Amphibie"], correct: 1, hint: "Wie ein Huhn." },
+                { question: "Welcher Planet ist als der 'rote Planet' bekannt?", options: ["Mars", "Venus", "Jupiter", "Saturn"], correct: 0, hint: "Nach dem römischen Kriegsgott benannt." },
+                { question: "Wie nennt man die Lehre von den Wettererscheinungen?", options: ["Meteorologie", "Biologie", "Geografie", "Astronomie"], correct: 0, hint: "Wetterkunde." },
+                { question: "Welcher Baum hat weiße Rinde und kleine Blätter?", options: ["Birke", "Eiche", "Buche", "Ahorn"], correct: 0, hint: "Sehr auffälliger weißer Stamm." },
+                { question: "Welches ist das größte Tier der Welt?", options: ["Blauwal", "Elefant", "Giraffe", "Haifisch"], correct: 0, hint: "Schwimmt im Ozean." },
+                { question: "Wie nennt man das Wasser, das vom Himmel fällt?", options: ["Niederschlag", "Verdunstung", "Grundwasser", "Tau"], correct: 0, hint: "Regen, Schnee oder Hagel." },
+                { question: "Welche Himmelsrichtung zeigt dorthin, wo die Sonne aufgeht?", options: ["Osten", "Westen", "Norden", "Süden"], correct: 0, hint: "Morgensonne." },
+                { question: "Welche Himmelsrichtung zeigt dorthin, wo die Sonne untergeht?", options: ["Osten", "Westen", "Norden", "Süden"], correct: 1, hint: "Abendsonne." },
+                { question: "Wie viele Zähne hat ein erwachsener Mensch normalerweise?", options: ["28", "32", "24", "30"], correct: 1, hint: "Inklusive Weisheitszähnen." },
+                { question: "Welches Organ filtert das Blut und bildet Urin?", options: ["Niere", "Leber", "Magen", "Milz"], correct: 0, hint: "Davon hat der Mensch zwei." },
+                { question: "Welcher Staat ist flächenmäßig der größte der Erde?", options: ["Russland", "Kanada", "China", "USA"], correct: 0, hint: "Erstreckt sich über Europa und Asien." },
+                { question: "Wie nennt man den festen Zustand von Wasser?", options: ["Eis", "Dampf", "Flüssig", "Nebel"], correct: 0, hint: "Gefrorenes Wasser." },
+                { question: "Welches Insektenprodukt sammelt die Honigbiene?", options: ["Nektar", "Milch", "Wachs", "Seide"], correct: 0, hint: "Süsser Pflanzensaft." },
+                { question: "Was ist die offizielle Währung in Deutschland?", options: ["Euro", "Dollar", "Franken", "Pfund"], correct: 0, hint: "Gilt in den meisten EU-Ländern." },
+                { question: "Wie heißt das Parlament von Deutschland, das in Berlin tagt?", options: ["Bundestag", "Bundesrat", "Landtag", "Gemeinderat"], correct: 0, hint: "Dort sitzen die Abgeordneten." },
+                { question: "Welches Gebirge liegt im Süden von Deutschland?", options: ["Alpen", "Harz", "Eifel", "Schwarzwald"], correct: 0, hint: "Sehr hohe Berge mit Schnee." },
+                { question: "Wie nennt man den tiefsten Punkt der Ozeane?", options: ["Mariannengraben", "Grand Canyon", "Mount Everest", "Totes Meer"], correct: 0, hint: "Im Pazifischen Ozean." },
+                { question: "Welcher Planet unseres Sonnensystems hat große Ringe?", options: ["Saturn", "Mars", "Merkur", "Neptun"], correct: 0, hint: "Bekannt für seine Eiskristallringe." },
+                { question: "Welches Sinnesorgan nutzen wir zum Hören?", options: ["Ohr", "Auge", "Nase", "Haut"], correct: 0, hint: "Nimmt Schallwellen wahr." },
+                { question: "Welche Tiere gehören zu den Amphibien?", options: ["Frösche", "Hunde", "Fische", "Vögel"], correct: 0, hint: "Leben an Land und im Wasser." },
+                { question: "Wie nennt man die Schicht aus Gasen, die die Erde umgibt?", options: ["Atmosphäre", "Lithosphäre", "Hydrosphäre", "Biosphäre"], correct: 0, hint: "Die Lufthülle." },
+                { question: "Welche Farbe hat Sauerstoff im gasförmigen Zustand?", options: ["Farblos", "Blau", "Weiß", "Grün"], correct: 0, hint: "Man kann es mit dem Auge nicht sehen." },
+                { question: "Welcher Monat hat normalerweise die wenigsten Tage?", options: ["Februar", "Januar", "April", "Dezember"], correct: 0, hint: "Hat nur 28 oder 29 Tage." },
+                { question: "Welches ist das leichteste chemische Element im Universum?", options: ["Wasserstoff", "Sauerstoff", "Helium", "Kohlenstoff"], correct: 0, hint: "H." }
+            ]
+        };
+
+        const horseLevels = [
+            [
+                { display: "2 + 4", target: 6 }, { display: "6 x 2", target: 12 }, { display: "12 + 3", target: 15 },
+                { display: "15 - 4", target: 11 }, { display: "11 + 5", target: 16 }, { display: "16 : 2", target: 8 },
+                { display: "8 + 7", target: 15 }, { display: "15 - 5", target: 10 }, { display: "10 x 3", target: 30 },
+                { display: "30 : 3", target: 10 }, { display: "10 + 12", target: 22 }, { display: "22 - 10", target: 12 }
+            ],
+            [
+                { display: "12 + 18", target: 30 }, { display: "30 - 7", target: 23 }, { display: "23 + 12", target: 35 },
+                { display: "35 : 5", target: 7 }, { display: "7 x 4", target: 28 }, { display: "28 + 14", target: 42 },
+                { display: "42 - 12", target: 30 }, { display: "30 : 6", target: 5 }, { display: "5 x 9", target: 45 },
+                { display: "45 - 15", target: 30 }, { display: "30 + 19", target: 49 }, { display: "49 : 7", target: 7 }
+            ],
+            [
+                { display: "7 x 8", target: 56 }, { display: "56 - 16", target: 40 }, { display: "40 + 25", target: 65 },
+                { display: "65 : 5", target: 13 }, { display: "13 x 3", target: 39 }, { display: "39 + 21", target: 60 },
+                { display: "60 - 24", target: 36 }, { display: "36 + 36", target: 72 }, { display: "72 : 8", target: 9 },
+                { display: "9 x 7", target: 63 }, { display: "63 + 17", target: 80 }, { display: "80 : 4", target: 20 }
+            ],
+            [
+                { display: "20 + 35", target: 55 }, { display: "55 x 1", target: 55 }, { display: "55 + 45", target: 100 },
+                { display: "100 : 2", target: 50 }, { display: "50 - 17", target: 33 }, { display: "33 + 33", target: 66 },
+                { display: "66 : 3", target: 22 }, { display: "22 x 4", target: 88 }, { display: "88 - 38", target: 50 },
+                { display: "50 + 42", target: 92 }, { display: "92 : 2", target: 46 }, { display: "46 + 54", target: 100 }
+            ],
+            [
+                { display: "10 + 20", target: 30 }, { display: "30 + 30", target: 60 }, { display: "60 - 15", target: 45 },
+                { display: "45 + 25", target: 70 }, { display: "70 : 7", target: 10 }, { display: "10 x 8", target: 80 },
+                { display: "80 - 40", target: 40 }, { display: "40 + 40", target: 80 }, { display: "80 : 2", target: 40 },
+                { display: "40 + 60", target: 100 }, { display: "100 - 50", target: 50 }, { display: "50 + 50", target: 100 }
+            ],
+            [
+                { display: "3 x 3", target: 9 }, { display: "9 x 9", target: 81 }, { display: "81 - 21", target: 60 },
+                { display: "60 : 6", target: 10 }, { display: "10 x 5", target: 50 }, { display: "50 + 50", target: 100 },
+                { display: "100 : 4", target: 25 }, { display: "25 + 25", target: 50 }, { display: "50 - 20", target: 30 },
+                { display: "30 x 3", target: 90 }, { display: "90 : 9", target: 10 }, { display: "10 + 90", target: 100 }
+            ],
+            [
+                { display: "15 + 15", target: 30 }, { display: "30 + 30", target: 60 }, { display: "60 + 30", target: 90 },
+                { display: "90 - 40", target: 50 }, { display: "50 + 25", target: 75 }, { display: "75 - 25", target: 50 },
+                { display: "50 x 2", target: 100 }, { display: "100 : 5", target: 20 }, { display: "20 + 80", target: 100 },
+                { display: "100 : 10", target: 10 }, { display: "10 x 10", target: 100 }, { display: "100 - 100", target: 0 }
+            ],
+            [
+                { display: "50 + 50", target: 100 }, { display: "100 - 25", target: 75 }, { display: "75 - 15", target: 60 },
+                { display: "60 + 40", target: 100 }, { display: "100 : 2", target: 50 }, { display: "50 - 25", target: 25 },
+                { display: "25 + 75", target: 100 }, { display: "100 : 4", target: 25 }, { display: "25 x 3", target: 75 },
+                { display: "75 + 25", target: 100 }, { display: "100 : 1", target: 100 }, { display: "100 - 50", target: 50 }
+            ],
+            [
+                { display: "11 + 11", target: 22 }, { display: "22 + 22", target: 44 }, { display: "44 + 44", target: 88 },
+                { display: "88 - 38", target: 50 }, { display: "50 + 50", target: 100 }, { display: "100 : 10", target: 10 },
+                { display: "10 x 7", target: 70 }, { display: "70 - 20", target: 50 }, { display: "50 + 30", target: 80 },
+                { display: "80 - 10", target: 70 }, { display: "70 + 30", target: 100 }, { display: "100 : 2", target: 50 }
+            ],
+            [
+                { display: "9 + 9", target: 18 }, { display: "18 + 18", target: 36 }, { display: "36 + 36", target: 72 },
+                { display: "72 - 22", target: 50 }, { display: "50 + 50", target: 100 }, { display: "100 : 5", target: 20 },
+                { display: "20 x 4", target: 80 }, { display: "80 - 30", target: 50 }, { display: "50 + 50", target: 100 },
+                { display: "100 : 4", target: 25 }, { display: "25 + 75", target: 100 }, { display: "100 : 10", target: 10 }
+            ],
+            [
+                { display: "13 + 13", target: 26 }, { display: "26 + 26", target: 52 }, { display: "52 - 12", target: 40 },
+                { display: "40 + 60", target: 100 }, { display: "100 : 2", target: 50 }, { display: "50 + 50", target: 100 },
+                { display: "100 : 4", target: 25 }, { display: "25 + 25", target: 50 }, { display: "50 + 50", target: 100 },
+                { display: "100 : 5", target: 20 }, { display: "20 x 5", target: 100 }, { display: "100 - 20", target: 80 }
+            ],
+            [
+                { display: "14 + 14", target: 28 }, { display: "28 + 28", target: 56 }, { display: "56 - 6", target: 50 },
+                { display: "50 + 50", target: 100 }, { display: "100 : 2", target: 50 }, { display: "50 + 25", target: 75 },
+                { display: "75 + 25", target: 100 }, { display: "100 : 10", target: 10 }, { display: "10 x 10", target: 100 },
+                { display: "100 - 50", target: 50 }, { display: "50 + 50", target: 100 }, { display: "100 : 1", target: 100 }
+            ],
+            [
+                { display: "25 + 25", target: 50 }, { display: "50 + 50", target: 100 }, { display: "100 : 2", target: 50 },
+                { display: "50 + 50", target: 100 }, { display: "100 : 4", target: 25 }, { display: "25 + 75", target: 100 },
+                { display: "100 : 5", target: 20 }, { display: "20 x 5", target: 100 }, { display: "100 : 10", target: 10 },
+                { display: "10 x 10", target: 100 }, { display: "100 - 50", target: 50 }, { display: "50 + 50", target: 100 }
+            ],
+            [
+                { display: "50 + 50", target: 100 }, { display: "100 : 2", target: 50 }, { display: "50 + 50", target: 100 },
+                { display: "100 : 4", target: 25 }, { display: "25 + 75", target: 100 }, { display: "100 : 5", target: 20 },
+                { display: "20 x 5", target: 100 }, { display: "100 : 10", target: 10 }, { display: "10 x 10", target: 100 },
+                { display: "100 - 0", target: 100 }, { display: "100 : 1", target: 100 }, { display: "100 + 0", target: 100 }
+            ]
+        ];
+
+        const horseIcons = ["🐴", "🐎", "🦄", "🎠", "🌟", "⚡", "🔥", "💎", "👑", "🚀", "🌈", "🏆", "✨", "🪽"];
+        const funnySignatures = [
+            "Dr. med. vet. Hufschlag",
+            "Prof. Dr. Galopp",
+            "Cheftrainer Huf & Haken",
+            "Klopfer, das Rennpferd",
+            "Major Tom & die Ponys",
+            "Geprüft per Hufabdruck 🐾",
+            "Graf von Koppel",
+            "Ministerium für Möhren"
+        ];
+
+        const rallyStepsData = [
+            { display: "128 + 245", target: 373 }, { display: "500 - 184", target: 316 },
+            { display: "15 x 12", target: 180 }, { display: "450 : 9", target: 50 },
+            { display: "Max hat 36 Murmeln und schenkt Lisa 14. Wie viele hat er noch?", target: 22 },
+            { display: "34 + 18 + 52", target: 104 }, { display: "840 - 370", target: 470 },
+            { display: "24 x 4", target: 96 }, { display: "630 : 7", target: 90 },
+            { display: "Ein Buch kostet 18 €. Anna kauft 3 Stück. Wie viel zahlt sie?", target: 54 },
+            { display: "75 + 125 - 40", target: 160 }, { display: "1000 - 589", target: 411 },
+            { display: "14 x 7", target: 98 }, { display: "720 : 8", target: 90 },
+            { display: "Auf einem Parkplatz stehen 24 Autos mit je 4 Reifen. Wie viele Reifen sind das?", target: 96 },
+            { display: "65 + 48 + 37", target: 150 }, { display: "432 + 189", target: 621 },
+            { display: "18 x 5", target: 90 }, { display: "810 : 9", target: 90 },
+            { display: "Tim hat 60 Min Schulweg pro Tag (Hin und zurück). Wie viele Min in 5 Tagen?", target: 300 },
+            { display: "250 - 85 + 40", target: 205 }, { display: "650 - 275", target: 375 },
+            { display: "16 x 6", target: 96 }, { display: "540 : 6", target: 90 },
+            { display: "Ein Bauer hat 120 Äpfel und verteilt sie gleichmäßig an 4 Kinder. Wie viele bekommt jedes?", target: 30 },
+            { display: "99 + 155 + 46", target: 300 }, { display: "734 - 289", target: 445 },
+            { display: "13 x 8", target: 104 }, { display: "480 : 8", target: 60 },
+            { display: "In einem Kino sind 8 Reihen mit je 15 Plätzen besetzt. Wie viele Gäste sind da?", target: 120 },
+            { display: "320 + 415 - 90", target: 645 }, { display: "800 - 435", target: 365 },
+            { display: "17 x 4", target: 68 }, { display: "560 : 7", target: 80 },
+            { display: "Sarah läuft täglich 400 m zur Schule und zurück. Wie viel Meter in 5 Schultagen?", target: 4000 },
+            { display: "112 + 238 + 150", target: 500 }, { display: "920 - 475", target: 445 },
+            { display: "19 x 5", target: 95 }, { display: "490 : 7", target: 70 },
+            { display: "Ein Bauer packt 72 Eier in Schachteln à 6 Stück. Wie viele Schachteln braucht er?", target: 12 },
+            { display: "45 + 85 + 120 - 50", target: 200 }, { display: "612 - 348", target: 264 },
+            { display: "14 x 9", target: 126 }, { display: "720 : 9", target: 80 },
+            { display: "Tom hat 50 € und kauft ein Spiel für 34 €. Wie viel Wechselgeld bekommt er?", target: 16 },
+            { display: "215 + 385 + 100", target: 700 }, { display: "850 - 390", target: 460 },
+            { display: "16 x 7", target: 112 }, { display: "630 : 9", target: 70 },
+            { display: "Ein Zug hat 6 Waggons mit je 45 Sitzplätzen. Wie viele Plätze gibt es insgesamt?", target: 270 },
+            { display: "54 + 76 + 89 + 31", target: 250 }, { display: "743 - 298", target: 445 },
+            { display: "12 x 15", target: 180 }, { display: "960 : 8", target: 120 },
+            { display: "Lisa liest jeden Tag 12 Seiten in ihrem Buch. Wie viele Seiten schafft sie in einer Woche (7 Tage)?", target: 84 },
+            { display: "333 + 444 - 111", target: 666 }, { display: "900 - 543", target: 357 },
+            { display: "21 x 4", target: 84 }, { display: "750 : 5", target: 150 },
+            { display: "Ein Hufeisen wiegt 250 Gramm. Wie schwer sind 4 Hufeisen zusammen in Gramm?", target: 1000 },
+            { display: "88 + 92 + 105 + 15", target: 300 }, { display: "682 - 319", target: 363 },
+            { display: "25 x 6", target: 150 }, { display: "840 : 6", target: 140 },
+            { display: "In einer Schultasche sind 3 Hefte zu je 2 € und ein Stift für 4 €. Gesamtkosten?", target: 10 },
+            { display: "450 + 275 - 125", target: 600 }, { display: "1000 - 372", target: 628 },
+            { display: "18 x 7", target: 126 }, { display: "990 : 9", target: 110 },
+            { display: "Max hat 85 Bonbons und teilt sie an 5 Freunde auf. Wie viele bekommt jeder?", target: 17 },
+            { display: "123 + 456 + 221", target: 800 }, { display: "950 - 485", target: 465 },
+            { display: "22 x 5", target: 110 }, { display: "680 : 4", target: 170 },
+            { display: "Ein Bauer erntet 300 kg Kartoffeln und verkauft 180 kg. Wie viel kg bleiben übrig?", target: 120 },
+            { display: "140 + 260 + 150", target: 550 }, { display: "700 - 245", target: 455 },
+            { display: "11 x 11", target: 121 }, { display: "540 : 9", target: 60 },
+            { display: "Anna spart jede Woche 5 €. Wie viel hat sie nach einem halben Jahr (26 Wochen)?", target: 130 },
+            { display: "310 + 290 - 150", target: 450 }, { display: "850 - 410", target: 440 },
+            { display: "12 x 12", target: 144 }, { display: "600 : 5", target: 120 },
+            { display: "Ein Schulbus fährt morgens 15 km und nachmittags 15 km. Wie viel km an 5 Schultagen?", target: 150 },
+            { display: "175 + 225 + 300", target: 700 }, { display: "900 - 333", target: 567 },
+            { display: "13 x 7", target: 91 }, { display: "450 : 5", target: 90 },
+            { display: "Tom hat 4 Packungen Buntstifte mit je 12 Stiften. Wie viele Stifte sind das?", target: 48 },
+            { display: "220 + 330 + 110", target: 660 }, { display: "750 - 380", target: 370 },
+            { display: "14 x 8", target: 112 }, { display: "560 : 8", target: 70 },
+            { display: "Ein Kuchen wird in 12 Stücke geschnitten. 5 Stücke werden gegessen. Wie viele sind da?", target: 7 },
+            { display: "190 + 210 + 250", target: 650 }, { display: "820 - 390", target: 430 },
+            { display: "16 x 5", target: 80 }, { display: "720 : 6", target: 120 },
+            { display: "Ein Kino-Ticket kostet 9 €. Wie viel kosten 4 Tickets zusammen?", target: 36 },
+            { display: "300 + 400 - 150", target: 550 }, { display: "990 - 440", target: 550 },
+            { display: "15 x 6", target: 90 }, { display: "810 : 3", target: 270 },
+            { display: "Mia hat 72 Perlen und bastelt 6 gleich große Armbänder. Wie viele Perlen pro Armband?", target: 12 }
+        ];
+
+        let activePathSteps = [];
+        let currentPathIndex = 0;
+        let currentGameKey = '';
+        let currentHorseLevel = 0;
+        let totalHorseshoes = 0;
+        let rallyCurrentIndex = 0;
+        let shuffledRallySteps = [];
+        let wrongPinCount = 0;
+
+        let activeQuestions = [];
+        let currentSubject = '';
+        let currentQuestionIndex = 0;
+        let isTestModeActive = false;
+        let isStrictDirectInputMode = false;
+        let latestFinishedHorseLevel = 1;
+        
+        let sessionStats = {
+            minutes: 0,
+            categories: new Set(),
+            totalAnswered: 0,
+            totalCorrect: 0
+        };
+
+        let globalTimeLeft = 0;
+        let globalTimerInterval = null;
+        let lastActivityTime = Date.now();
+        let isPausedByInactivity = false;
+        let isSessionActive = false;
+        let activeSessionMinutes = 0;
+
+        let isChallengeMode = false;
+        let currentChallengeLevel = 1;
+        let challengeErrorsCount = 0;
+        let challengeCorrectCount = 0;
+        let challengeJokersLeft = 3;
+
+        let defaultRewards = [
+            { cost: 300, text: "2 €" },
+            { cost: 500, text: "7 Tage ohne Lernzeit 🛌" },
+            { cost: 800, text: "14 Tage ohne Lernzeit 🛌" },
+            { cost: 1000, text: "10 € Roblox-Karte 🎮" },
+            { cost: 1300, text: "15 € Roblox-Karte 🎮" }
+        ];
+
+        function getRewardsList() {
+            let saved = JSON.parse(localStorage.getItem('custom_rewards_list') || 'null');
+            return saved ? saved : defaultRewards;
+        }
+
+        function renderRewardsListDisplay() {
+            const listEl = document.getElementById('rewards-list-display');
+            if (!listEl) return;
+            listEl.innerHTML = '';
+            let rewards = getRewardsList();
+            rewards.forEach(r => {
+                let p = document.createElement('p');
+                p.innerHTML = `• <strong>${r.cost} Hufeisen</strong> = ${r.text}`;
+                listEl.appendChild(p);
+            });
+        }
+
+        function editRewardsList() {
+            let pin = prompt("Bitte Admin-PIN eingeben zum Bearbeiten des Prämien-Shops:");
+            if (!checkPinWithLockdown(pin, "0307")) return;
+
+            let rewards = getRewardsList();
+            let promptText = "Aktuelle Prämien:\n" + rewards.map((r, i) => `${i+1}) ${r.cost} Hufeisen = ${r.text}`).join("\n") + 
+                             "\n\nMöchtest du eine Prämie ändern? Gib die Nummer (1-5) ein oder klicke auf Abbrechen:";
+            
+            let indexStr = prompt(promptText, "1");
+            if (indexStr === null) return;
+            let index = parseInt(indexStr) - 1;
+
+            if (isNaN(index) || index < 0 || index >= rewards.length) {
+                alert("Ungültige Nummer!");
+                return;
+            }
+
+            let newCostStr = prompt(`Neue Hufeisen-Anzahl für "${rewards[index].text}":`, rewards[index].cost);
+            if (newCostStr === null) return;
+            let newCost = parseInt(newCostStr);
+
+            let newText = prompt(`Neue Beschreibung für ${newCost} Hufeisen:`, rewards[index].text);
+            if (newText === null) return;
+
+            if (!isNaN(newCost) && newCost > 0) {
+                rewards[index].cost = newCost;
+                rewards[index].text = newText;
+                localStorage.setItem('custom_rewards_list', JSON.stringify(rewards));
+                renderRewardsListDisplay();
+                alert("Prämien-Shop erfolgreich aktualisiert!");
+            } else {
+                alert("Ungültige Hufeisen-Anzahl!");
+            }
+        }
+
+        window.onload = function() {
+            if (localStorage.getItem('app_lockdown') === 'true') {
+                showLockdownScreen();
+                return;
+            }
+
+            const savedLevel = localStorage.getItem('horse_completed_level');
+            if (savedLevel !== null) {
+                currentHorseLevel = parseInt(savedLevel);
+            }
+            const savedHorseshoes = localStorage.getItem('total_horseshoes');
+            if (savedHorseshoes !== null) {
+                totalHorseshoes = parseInt(savedHorseshoes);
+            }
+            
+            const savedRallyIndex = localStorage.getItem('rally_checkpoint_index');
+            if (savedRallyIndex !== null) {
+                let rawIdx = parseInt(savedRallyIndex);
+                rallyCurrentIndex = Math.floor(rawIdx / 5) * 5; 
+            } else {
+                rallyCurrentIndex = 0;
+            }
+
+            shuffledRallySteps = [...rallyStepsData];
+            shuffledRallySteps.sort(() => Math.random() - 0.5);
+
+            initLogTable();
+            updateChallengeMenuDisplay();
+            updateHorseshoeDisplay();
+            renderRewardsListDisplay();
+
+            document.addEventListener("visibilitychange", function() {
+                if (document.hidden && !isChallengeMode && (currentGameKey === 'horse' || currentGameKey === 'rally')) {
+                    triggerCheatPenalty();
+                }
+            });
+
+            window.addEventListener("blur", function() {
+                if (document.hidden && !isChallengeMode && (currentGameKey === 'horse' || currentGameKey === 'rally')) {
+                    triggerCheatPenalty();
+                }
+            });
+        };
+
+        function showLockdownScreen() {
+            const screens = ['screen-home', 'screen-challenge-select', 'screen-quiz', 'screen-path', 'screen-result', 'screen-cert-box', 'screen-horseshoe-box'];
+            screens.forEach(id => {
+                const el = document.getElementById(id);
+                if (el) {
+                    el.classList.add('hidden');
+                    el.style.display = 'none';
+                }
+            });
+            const lockdownEl = document.getElementById('screen-lockdown');
+            if (lockdownEl) {
+                lockdownEl.classList.remove('hidden');
+                lockdownEl.style.display = 'flex';
+            }
+        }
+
+        function unlockApp() {
+            let pin = prompt("Master-PIN zur Entsperrung eingeben:");
+            if (pin === "1985") {
+                localStorage.removeItem('app_lockdown');
+                wrongPinCount = 0;
+                alert("System erfolgreich entsperrt!");
+                showScreen('screen-home');
+            } else {
+                alert("Falscher Master-PIN!");
+            }
+        }
+
+        function checkPinWithLockdown(enteredPin, correctPin) {
+            if (enteredPin === correctPin) {
+                wrongPinCount = 0;
+                return true;
+            } else if (enteredPin !== null) {
+                wrongPinCount++;
+                if (wrongPinCount >= 2) {
+                    localStorage.setItem('app_lockdown', 'true');
+                    showLockdownScreen();
+                } else {
+                    alert(`Falsche PIN! Noch ${2 - wrongPinCount} Fehlversuch bis zur Sperre.`);
+                }
+            }
+            return false;
+        }
+
+        function updateHorseshoeDisplay() {
+            const countEl = document.getElementById('menu-horseshoe-count');
+            if (countEl) countEl.innerText = totalHorseshoes;
+            const totalDisplay = document.getElementById('horseshoe-total-display');
+            if (totalDisplay) totalDisplay.innerText = `${totalHorseshoes} 🧲 Hufeisen`;
+        }
+
+        function openHorseshoeBox() {
+            updateHorseshoeDisplay();
+            renderRewardsListDisplay();
+            showScreen('screen-horseshoe-box');
+        }
+
+        function calculateHorseshoesEarned(taskNum) {
+            if (taskNum === 100) return 1000;
+            if (taskNum <= 10) return 4;
+            if (taskNum <= 20) return 6;
+            if (taskNum <= 40) return 7;
+            if (taskNum <= 60) return 8;
+            if (taskNum <= 80) return 11;
+            return 13;
+        }
+
+        function redeemHorseshoes() {
+            let pin = prompt("Bitte Admin-PIN eingeben zum Einlösen:");
+            if (!checkPinWithLockdown(pin, "0307")) return;
+
+            const now = new Date();
+            const currentMonth = now.getMonth();
+            const currentDate = now.getDate();
+
+            let lastRedeemMonth = localStorage.getItem('last_redeem_month');
+            let alreadyRedeemedThisMonth = lastRedeemMonth && parseInt(lastRedeemMonth) === currentMonth;
+
+            if (currentDate < 15 || alreadyRedeemedThisMonth) {
+                let bypassPin = prompt("⚠️ Regel-Sperre aktiv (Entweder vor dem 15. oder diesen Monat schon eingelöst).\nMöchtest du das mit dem Admin-PIN umgehen? (Admin-PIN eingeben oder abbrechen):");
+                if (bypassPin !== "0307") {
+                    alert("Einlösung abgebrochen.");
+                    return;
+                }
+            }
+
+            let rewards = getRewardsList();
+            let rewardPromptText = `Aktuelles Guthaben: ${totalHorseshoes} Hufeisen.\nWieviele Hufeisen möchtest du einlösen?\n` +
+                                   rewards.map(r => `${r.cost} = ${r.text}`).join(" | ");
+
+            let amountStr = prompt(rewardPromptText, "300");
+            if (amountStr === null) return;
+            let amount = parseInt(amountStr);
+
+            if (isNaN(amount) || amount <= 0 || amount > totalHorseshoes) {
+                alert("Ungültige Anzahl!");
+                return;
+            }
+
+            totalHorseshoes -= amount;
+            localStorage.setItem('total_horseshoes', totalHorseshoes);
+            localStorage.setItem('last_redeem_month', currentMonth);
+            updateHorseshoeDisplay();
+            alert(`Erfolgreich ${amount} Hufeisen eingelöst! Restguthaben: ${totalHorseshoes} Hufeisen.`);
+        }
+
+        function adminDeleteHorseshoes() {
+            let pin = prompt("Bitte Admin-PIN eingeben zum punktgenauen Löschen:");
+            if (!checkPinWithLockdown(pin, "0307")) return;
+
+            let amountStr = prompt(`Aktuelles Guthaben: ${totalHorseshoes} Hufeisen.\nWieviele Hufeisen sollen abgezogen werden?`, "50");
+            if (amountStr === null) return;
+            let amount = parseInt(amountStr);
+
+            if (isNaN(amount) || amount < 0) {
+                alert("Ungültige Zahl!");
+                return;
+            }
+
+            totalHorseshoes = Math.max(0, totalHorseshoes - amount);
+            localStorage.setItem('total_horseshoes', totalHorseshoes);
+            updateHorseshoeDisplay();
+            alert(`Es wurden ${amount} Hufeisen abgezogen. Neues Guthaben: ${totalHorseshoes} Hufeisen.`);
+        }
+
+        function resetRallyProgress() {
+            let pin = prompt("Bitte Admin-PIN eingeben zum Zurücksetzen der Mathe-Rallye:");
+            if (!checkPinWithLockdown(pin, "0307")) return;
+
+            rallyCurrentIndex = 0;
+            localStorage.setItem('rally_checkpoint_index', 0);
+            shuffledRallySteps = [...rallyStepsData];
+            shuffledRallySteps.sort(() => Math.random() - 0.5);
+            alert("Mathe-Rallye wurde auf Aufgabe 1 zurückgesetzt!");
+        }
+
+        function adminResetChallenge() {
+            let pin = prompt("Bitte Admin-PIN eingeben zum Zurücksetzen der Challenge:");
+            if (!checkPinWithLockdown(pin, "0307")) return;
+
+            localStorage.removeItem('challenge_progress');
+            localStorage.removeItem('challenge_saved_state');
+            updateChallengeMenuDisplay();
+            alert("Wochen-Challenge wurde erfolgreich auf Level 1 zurückgesetzt!");
+            openChallengeLevelSelect();
+        }
+
+        function adminDeleteCertificates() {
+            let pin = prompt("Bitte Admin-PIN eingeben zum Löschen der Urkunden:");
+            if (!checkPinWithLockdown(pin, "0307")) return;
+
+            if (confirm("Möchtest du wirklich alle Urkunden (und das Pferde-Rennen) zurücksetzen?")) {
+                localStorage.removeItem('horse_completed_level');
+                currentHorseLevel = 0;
+                alert("Alle Urkunden wurden gelöscht!");
+                openCertificateBox();
+            }
+        }
+
+        function triggerCheatPenalty() {
+            if (currentGameKey === 'horse' || currentGameKey === 'rally') {
+                alert("⚠️ Schummeln erkannt! Das Verlassen der App hat das Level abgebrochen.");
+                showScreen('screen-home');
+            }
+        }
+
+        function tryOpenChallenge() {
+            if (isSessionActive) {
+                alert("⚠️ Erst die offizielle Lernzeit beenden!\nDie Wochen-Challenge ist während der laufenden Lernzeit gesperrt.");
+                return;
+            }
+            openChallengeLevelSelect();
+        }
+
+        function tryStartPathGame(gameKey) {
+            if (isSessionActive) {
+                let name = (gameKey === 'horse') ? "Rechen-Pferderennen" : "Mathe Rallye";
+                alert(`⚠️ Erst die offizielle Lernzeit beenden!\nDas ${name} ist während der laufenden Lernzeit gesperrt.`);
+                return;
+            }
+            startPathGame(gameKey);
+        }
+
+        function getChallengeProgress() {
+            let data = JSON.parse(localStorage.getItem('challenge_progress') || 'null');
+            const now = Date.now();
+            const oneWeekMs = 7 * 24 * 60 * 60 * 1000;
+
+            if (!data) {
+                data = { unlockedLevel: 1, lastUnlockTime: now, lockedLevels: {}, passedLevels: {} };
+                localStorage.setItem('challenge_progress', JSON.stringify(data));
+            } else {
+                for (let lvl = 1; lvl < 10; lvl++) {
+                    if (data.passedLevels && data.passedLevels[lvl]) {
+                        let passedTime = data.passedLevels[lvl];
+                        if (now - passedTime >= oneWeekMs) {
+                            if (data.unlockedLevel <= lvl) {
+                                data.unlockedLevel = lvl + 1;
+                                localStorage.setItem('challenge_progress', JSON.stringify(data));
+                            }
+                        }
+                    }
+                }
+            }
+            return data;
+        }
+
+        function updateChallengeMenuDisplay() {
+            const prog = getChallengeProgress();
+            const infoEl = document.getElementById('challenge-menu-info');
+            if (infoEl) {
+                infoEl.innerText = `Freigeschaltet: Level ${prog.unlockedLevel} von 10`;
+            }
+        }
+
+        function openChallengeLevelSelect() {
+            const prog = getChallengeProgress();
+            const grid = document.getElementById('challenge-levels-grid');
+            grid.innerHTML = '';
+            const now = Date.now();
+            const oneWeekMs = 7 * 24 * 60 * 60 * 1000;
+
+            for (let i = 1; i <= 10; i++) {
+                let isPassed = prog.passedLevels && prog.passedLevels[i];
+                let prevPassedTime = (i > 1 && prog.passedLevels && prog.passedLevels[i - 1]) ? prog.passedLevels[i - 1] : 0;
+
+                let lockUntil = prog.lockedLevels ? prog.lockedLevels[i] : 0;
+                let isLevelLockedByError = lockUntil && now < lockUntil;
+
+                let isLevelLockedByWeek = prevPassedTime && (now - prevPassedTime < oneWeekMs) && !isPassed;
+
+                let rewardText = i === 1 ? "2 €" : (i <= 5 ? "3 €" : (i <= 8 ? "5 €" : "10 €"));
+                
+                let btn = document.createElement('button');
+
+                if (isPassed) {
+                    btn.className = "bg-green-100 border-2 border-green-400 text-green-900 font-bold p-3 rounded-2xl cursor-default text-left flex flex-col justify-between opacity-90 shadow-sm";
+                    btn.innerHTML = `<span>Level ${i} 🏆</span> <span class="text-xs text-green-700 font-semibold mt-1">Bestanden! (${rewardText} gewonnen)</span>`;
+                } else if (isLevelLockedByError) {
+                    let hoursLeft = Math.ceil((lockUntil - now) / (1000 * 60 * 60));
+                    btn.className = "bg-red-50 border-2 border-red-300 text-red-600 font-bold p-3 rounded-2xl cursor-not-allowed text-left flex flex-col justify-between";
+                    btn.innerHTML = `<span>Level ${i} ⏳</span> <span class="text-xs text-red-500 mt-1">Gesperrt (noch ${hoursLeft} Std. wegen Fehlern)</span>`;
+                } else if (isLevelLockedByWeek) {
+                    let timeLeft = oneWeekMs - (now - prevPassedTime);
+                    let days = Math.floor(timeLeft / (1000 * 60 * 60 * 24));
+                    let hours = Math.floor((timeLeft % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+                    let minutes = Math.floor((timeLeft % (1000 * 60 * 60)) / (1000 * 60));
+
+                    btn.className = "bg-blue-50 border-2 border-blue-300 text-blue-700 font-bold p-3 rounded-2xl cursor-not-allowed text-left flex flex-col justify-between";
+                    btn.innerHTML = `<span>Level ${i} 📅</span> <span class="text-xs text-blue-600 mt-1">Frei in: ${days}T ${hours}h ${minutes}m</span>`;
+                } else if (i === 1 || (prog.passedLevels && prog.passedLevels[i - 1] && now - prevPassedTime >= oneWeekMs)) {
+                    btn.className = "bg-amber-100 hover:bg-amber-200 border-2 border-amber-400 text-amber-900 font-bold p-3 rounded-2xl shadow transition text-left flex flex-col justify-between";
+                    let savedState = JSON.parse(localStorage.getItem('challenge_saved_state') || 'null');
+                    let statusLabel = (savedState && savedState.level === i) ? `⚠️ Fortsetzen (Frage ${savedState.questionIndex + 1})` : `🎁 ${rewardText} bei 15 Richtigen`;
+                    btn.innerHTML = `<span>Level ${i}</span> <span class="text-xs text-amber-700 font-semibold mt-1">${statusLabel}</span>`;
+                    btn.onclick = () => startChallengeLevel(i);
+                } else {
+                    btn.className = "bg-gray-100 border-2 border-gray-300 text-gray-400 font-bold p-3 rounded-2xl cursor-not-allowed text-left flex flex-col justify-between";
+                    btn.innerHTML = `<span>Level ${i} 🔒</span> <span class="text-xs text-gray-400 mt-1">Gesperrt</span>`;
+                }
+                grid.appendChild(btn);
+            }
+
+            showScreen('screen-challenge-select');
+        }
+
+        function startChallengeLevel(levelNum) {
+            const prog = getChallengeProgress();
+            const now = Date.now();
+
+            if (prog.passedLevels && prog.passedLevels[levelNum]) {
+                alert("Dieses Level wurde bereits bestanden und kann nicht wiederholt werden!");
+                return;
+            }
+
+            if (prog.lockedLevels && prog.lockedLevels[levelNum] && now < prog.lockedLevels[levelNum]) {
+                alert("Dieses Level ist nach einem Fehlversuch noch für 24 Stunden gesperrt!");
+                return;
+            }
+
+            isChallengeMode = true;
+            isTestModeActive = false;
+            currentChallengeLevel = levelNum;
+
+            let savedState = JSON.parse(localStorage.getItem('challenge_saved_state') || 'null');
+            if (savedState && savedState.level === levelNum) {
+                activeQuestions = savedState.activeQuestions;
+                currentQuestionIndex = savedState.questionIndex;
+                challengeErrorsCount = savedState.errorsCount;
+                challengeCorrectCount = savedState.correctCount || 0;
+                challengeJokersLeft = (savedState.jokersLeft !== undefined) ? savedState.jokersLeft : 3;
+            } else {
+                challengeErrorsCount = 0;
+                challengeCorrectCount = 0;
+                challengeJokersLeft = 3;
+                currentQuestionIndex = 0;
+                let allCombined = [...quizData.Mathe, ...quizData.Deutsch, ...quizData.Sachkunde];
+                allCombined.sort(() => Math.random() - 0.5);
+                activeQuestions = allCombined.slice(0, 20);
+            }
+
+            document.getElementById('quiz-subject-title').innerText = `🏆 Wochen-Challenge (Level ${levelNum})`;
+            document.getElementById('challenge-joker-container').classList.remove('hidden');
+            updateJokerButtonText();
+            showScreen('screen-quiz');
+            loadQuestion();
+        }
+
+        function updateJokerButtonText() {
+            const btnText = document.getElementById('joker-text');
+            if (btnText) {
+                btnText.innerText = `Frage tauschen (Noch ${challengeJokersLeft} übrig)`;
+            }
+            const jokerBtn = document.getElementById('btn-challenge-joker');
+            if (jokerBtn) {
+                if (challengeJokersLeft <= 0) {
+                    jokerBtn.classList.add('opacity-50', 'cursor-not-allowed');
+                } else {
+                    jokerBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+                }
+            }
+        }
+
+        function useChallengeJoker() {
+            if (challengeJokersLeft <= 0) {
+                alert("Du hast keine Joker mehr für dieses Level übrig!");
+                return;
+            }
+            challengeJokersLeft--;
+            updateJokerButtonText();
+
+            let allCombined = [...quizData.Mathe, ...quizData.Deutsch, ...quizData.Sachkunde];
+            allCombined.sort(() => Math.random() - 0.5);
+            activeQuestions[currentQuestionIndex] = allCombined[0];
+
+            alert("Joker eingesetzt! Die Frage wurde ausgetauscht.");
+            loadQuestion();
+        }
+
+        function returnToMenuWithSave() {
+            if (isChallengeMode) {
+                let stateToSave = {
+                    level: currentChallengeLevel,
+                    questionIndex: currentQuestionIndex,
+                    errorsCount: challengeErrorsCount,
+                    correctCount: challengeCorrectCount,
+                    jokersLeft: challengeJokersLeft,
+                    activeQuestions: activeQuestions
+                };
+                localStorage.setItem('challenge_saved_state', JSON.stringify(stateToSave));
+                alert("Challenge-Fortschritt wurde erfolgreich gespeichert!");
+                isChallengeMode = false;
+            }
+            returnToMenu();
+        }
+
+        function handleChallengeFinish(success) {
+            if (!isChallengeMode) return;
+            isChallengeMode = false;
+            document.getElementById('challenge-joker-container').classList.add('hidden');
+            localStorage.removeItem('challenge_saved_state');
+
+            let reward = currentChallengeLevel === 1 ? 2 : (currentChallengeLevel <= 5 ? 3 : (currentChallengeLevel <= 8 ? 5 : 10));
+
+            let resultText = success ? `Erfolgreich Betrag ${reward} € verdient! (${challengeCorrectCount} richtige Aufgaben)` : `Leider nicht geschafft (${challengeErrorsCount} Fehler)`;
+            
+            appendToLiveLog(`[Challenge Level ${currentChallengeLevel}]`, resultText, success);
+
+            let prog = getChallengeProgress();
+            if (success) {
+                if (!prog.passedLevels) prog.passedLevels = {};
+                prog.passedLevels[currentChallengeLevel] = Date.now();
+
+                if (prog.lockedLevels && prog.lockedLevels[currentChallengeLevel]) {
+                    delete prog.lockedLevels[currentChallengeLevel];
+                }
+            } else {
+                if (!prog.lockedLevels) prog.lockedLevels = {};
+                prog.lockedLevels[currentChallengeLevel] = Date.now() + (24 * 60 * 60 * 1000);
+            }
+            localStorage.setItem('challenge_progress', JSON.stringify(prog));
+
+            showScreen('screen-result');
+            document.getElementById('btn-print-certificate').classList.add('hidden');
+            document.getElementById('not-reached-actions').classList.add('hidden');
+            document.getElementById('penalty-notice').classList.add('hidden');
+            document.getElementById('result-title').innerText = success ? `🎉 Glückwunsch! Level ${currentChallengeLevel} geschafft!` : `💪 Leider nicht geschafft!`;
+            
+            const badge = document.getElementById('res-status-badge');
+            if (success) {
+                badge.className = "inline-block px-4 py-1.5 rounded-full text-sm font-bold mb-4 shadow-sm bg-green-100 text-green-800 border border-green-300";
+                badge.innerText = `💶 Du hast dir ${reward} € verdient! (${challengeCorrectCount} von 15 Richtigen)`;
+            } else {
+                badge.className = "inline-block px-4 py-1.5 rounded-full text-sm font-bold mb-4 shadow-sm bg-red-100 text-red-800 border border-red-300";
+                badge.innerText = "Level für 24 Stunden gesperrt wegen zu vieler Fehler.";
+            }
+
+            document.getElementById('res-time').innerText = "Freies Spiel (Challenge)";
+            document.getElementById('res-categories').innerText = `Wochen-Challenge (Level ${currentChallengeLevel})`;
+            document.getElementById('res-total').innerText = currentQuestionIndex;
+            document.getElementById('res-correct').innerText = `${challengeCorrectCount} von 15 (Benötigt)`;
+            
+            updateChallengeMenuDisplay();
+        }
+
+        function getTodayString() {
+            const d = new Date();
+            return d.toLocaleDateString('de-DE');
+        }
+
+        function getFormattedTime() {
+            const d = new Date();
+            return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        }
+
+        function appendToLiveLog(question, solution, isCorrect) {
+            let logs = JSON.parse(localStorage.getItem('learning_logs') || '{}');
+            const today = new Date().toISOString().split('T')[0];
+            
+            if (!logs[today]) {
+                logs[today] = { time: getFormattedTime(), tasks: [] };
+            }
+            
+            logs[today].tasks.push({
+                question: question,
+                solution: solution,
+                isCorrect: isCorrect
+            });
+
+            logs[today].time = getFormattedTime();
+            localStorage.setItem('learning_logs', JSON.stringify(logs));
+            renderLogTable();
+        }
+
+        function initLogTable() {
+            renderLogTable();
+        }
+
+        function clearAllLogs() {
+            if (confirm("Möchtest du wirklich alle heutigen Notizen löschen?")) {
+                let logs = JSON.parse(localStorage.getItem('learning_logs') || '{}');
+                const today = new Date().toISOString().split('T')[0];
+                if (logs[today]) {
+                    logs[today].tasks = [];
+                    logs[today].time = "-";
+                    localStorage.setItem('learning_logs', JSON.stringify(logs));
+                }
+                renderLogTable();
+                alert("Heutige Notizen wurden gelöscht!");
+            }
+        }
+
+        function printLog() {
+            window.print();
+        }
+
+        function printHorseCertificate(levelNum) {
+            const num = parseInt(levelNum);
+            const iconIndex = (num - 1) % horseIcons.length;
+            document.getElementById('cert-horse-icon').innerText = horseIcons[iconIndex];
+            document.getElementById('cert-level-display').innerText = `LEVEL ${num} MEISTER`;
+            document.getElementById('cert-date-display').innerText = `Datum: ${getTodayString()}`;
+
+            const sigIndex = (num - 1) % funnySignatures.length;
+            document.getElementById('cert-funny-sig').innerText = funnySignatures[sigIndex];
+            
+            document.body.classList.add('mode-cert');
+            window.print();
+            setTimeout(() => {
+                document.body.classList.remove('mode-cert');
+            }, 1000);
+        }
+
+        function openCertificateBox() {
+            const grid = document.getElementById('cert-grid');
+            grid.innerHTML = '';
+
+            if (currentHorseLevel === 0) {
+                grid.innerHTML = `<div class="col-span-2 p-6 text-center text-gray-400 text-xs">Noch keine Urkunden freigeschaltet. Spiele das Rechen-Pferderennen!</div>`;
+                showScreen('screen-cert-box');
+                return;
+            }
+
+            for (let i = 1; i <= currentHorseLevel; i++) {
+                let btn = document.createElement('button');
+                btn.className = "bg-purple-50 hover:bg-purple-100 border-2 border-purple-300 text-purple-900 font-bold p-3 rounded-2xl shadow transition text-left flex flex-col justify-between items-center text-center";
+                let icon = horseIcons[(i - 1) % horseIcons.length];
+                btn.innerHTML = `<span class="text-3xl mb-1">${icon}</span> <span class="text-xs font-black">Level ${i} Urkunde</span> <span class="text-[10px] text-purple-600 mt-1 underline">Drucken 🖨️</span>`;
+                btn.onclick = () => printHorseCertificate(i);
+                grid.appendChild(btn);
+            }
+
+            showScreen('screen-cert-box');
+        }
+
+        function renderLogTable() {
+            let logs = JSON.parse(localStorage.getItem('learning_logs') || '{}');
+            const today = new Date().toISOString().split('T')[0];
+            
+            const tbody = document.getElementById('log-table-body');
+            const metaInfo = document.getElementById('log-meta-info');
+            tbody.innerHTML = '';
+
+            const dayData = logs[today];
+            if (!dayData || !dayData.tasks || dayData.tasks.length === 0) {
+                metaInfo.innerText = `Letzte Aktivität: Heute (${getTodayString()}) - Keine Aufgaben`;
+                tbody.innerHTML = `<tr><td colspan="3" class="p-3 text-center text-gray-400">Noch keine Aufgaben heute gelöst.</td></tr>`;
+                return;
+            }
+
+            metaInfo.innerText = `Letzte Aktivität: Heute um ${dayData.time} Uhr`;
+
+            dayData.tasks.forEach(item => {
+                let tr = document.createElement('tr');
+                tr.className = "border-b border-amber-100 hover:bg-amber-50/50";
+                
+                let statusIcon = item.isCorrect ? '<span class="text-green-600 font-bold text-base">✅</span>' : '<span class="text-red-600 font-bold text-base">❌</span>';
+
+                tr.innerHTML = `
+                    <td class="p-2 font-medium text-gray-800">${item.question}</td>
+                    <td class="p-2 text-gray-600">${item.solution}</td>
+                    <td class="p-2 text-center">${statusIcon}</td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        function resetHorseProgress() {
+            if (confirm("Möchtest du das Pferderennen wirklich auf Level 1 zurücksetzen?")) {
+                localStorage.removeItem('horse_completed_level');
+                currentHorseLevel = 0;
+                alert("Erfolgreich auf Level 1 zurückgesetzt!");
+            }
+        }
+
+        function showScreen(screenId) {
+            const screens = ['screen-home', 'screen-challenge-select', 'screen-quiz', 'screen-path', 'screen-result', 'screen-cert-box', 'screen-horseshoe-box', 'screen-lockdown'];
+            screens.forEach(id => {
+                const el = document.getElementById(id);
+                if (el) {
+                    el.classList.add('hidden');
+                    el.style.display = 'none';
+                    el.style.visibility = 'hidden';
+                    el.style.opacity = '0';
+                }
+            });
+
+            const activeEl = document.getElementById(screenId);
+            if (activeEl) {
+                activeEl.classList.remove('hidden');
+                activeEl.style.display = (screenId === 'screen-lockdown') ? 'flex' : 'block';
+                activeEl.style.visibility = 'visible';
+                activeEl.style.opacity = '1';
+            }
+
+            if (screenId === 'screen-home') {
+                initLogTable();
+                updateChallengeMenuDisplay();
+                updateHorseshoeDisplay();
+            }
+            window.scrollTo(0, 0);
+        }
+
+        function startCustomSession() {
+            let choice = prompt("Wähle deine Lernzeit:\n1) Tippe eine Zahl von 10 bis 60 für reguläre Minuten\n2) Tippe '1' für den 1-Minuten-Test!", "20");
+            if (choice === null) return;
+
+            let minutes = parseInt(choice);
+            if (isNaN(minutes)) {
+                alert("Bitte gib eine gültige Zahl ein!");
+                return;
+            }
+
+            if (minutes === 1) {
+                startTestSession(1);
+            } else if (minutes >= 10 && minutes <= 60) {
+                startGlobalSession(minutes);
+            } else {
+                alert("Bitte wähle entweder 1 (für den Test) oder 10 bis 60 Minuten!");
+            }
+        }
+
+        function startTestSession(minutes) {
+            activeSessionMinutes = minutes;
+            globalTimeLeft = 60;
+            lastActivityTime = Date.now();
+            isPausedByInactivity = false;
+            isSessionActive = true;
+            isStrictDirectInputMode = false;
+
+            sessionStats = {
+                minutes: minutes,
+                categories: new Set(),
+                totalAnswered: 0,
+                totalCorrect: 0
+            };
+
+            document.getElementById('session-status').innerHTML = `🧪 Test-Lernzeit läuft: <span class="font-bold text-red-600">1 Minute</span>`;
+            
+            const homeTimer = document.getElementById('home-timer-display');
+            homeTimer.classList.remove('hidden');
+
+            if (globalTimerInterval) clearInterval(globalTimerInterval);
+            globalTimerInterval = setInterval(updateGlobalTimer, 1000);
+            updateGlobalTimer();
+        }
+
+        function checkInactivity() {
+            if (!isSessionActive) return;
+            const now = Date.now();
+            const inactiveSeconds = (now - lastActivityTime) / 1000;
+
+            if (inactiveSeconds >= 30 && !isPausedByInactivity) {
+                isPausedByInactivity = true;
+                const pauseBanner = document.getElementById('pause-banner');
+                if (pauseBanner) pauseBanner.classList.remove('hidden');
+            }
+        }
+
+        function resumeTimerOnTaskComplete() {
+            lastActivityTime = Date.now();
+            isPausedByInactivity = false;
+            const pauseBanner = document.getElementById('pause-banner');
+            if (pauseBanner) pauseBanner.classList.add('hidden');
+        }
+
+        function startGlobalSession(minutes) {
+            activeSessionMinutes = minutes;
+            globalTimeLeft = minutes * 60;
+            lastActivityTime = Date.now();
+            isPausedByInactivity = false;
+            isSessionActive = true;
+            isStrictDirectInputMode = false;
+
+            sessionStats = {
+                minutes: minutes,
+                categories: new Set(),
+                totalAnswered: 0,
+                totalCorrect: 0
+            };
+
+            document.getElementById('session-status').innerHTML = `✅ Lernzeit läuft: <span class="font-bold text-green-600">${minutes} Minuten</span>`;
+            
+            const homeTimer = document.getElementById('home-timer-display');
+            homeTimer.classList.remove('hidden');
+
+            if (globalTimerInterval) clearInterval(globalTimerInterval);
+            globalTimerInterval = setInterval(updateGlobalTimer, 1000);
+            updateGlobalTimer();
+        }
+
+        function updateGlobalTimer() {
+            if (!isSessionActive || globalTimeLeft <= 0) return;
+
+            checkInactivity();
+            if (isPausedByInactivity) return;
+
+            globalTimeLeft--;
+
+            const mins = Math.floor(globalTimeLeft / 60);
+            const secs = globalTimeLeft % 60;
+            const timeString = `${mins}:${secs < 10 ? '0' : ''}${secs}`;
+
+            const homeTimer = document.getElementById('home-timer-display');
+            if (homeTimer) homeTimer.innerText = timeString;
+
+            const quizTimer = document.getElementById('quiz-timer-display');
+            if (quizTimer) {
+                quizTimer.classList.remove('hidden');
+                quizTimer.innerText = `⏱️ ${timeString}`;
+            }
+
+            if (globalTimeLeft <= 0) {
+                clearInterval(globalTimerInterval);
+                isSessionActive = false;
+                showSessionFinished();
+            }
+        }
+
+        function showSessionFinished() {
+            isSessionActive = false;
+            if (globalTimerInterval) clearInterval(globalTimerInterval);
+
+            showScreen('screen-result');
+            document.getElementById('btn-print-certificate').classList.add('hidden');
+            document.getElementById('res-time').innerText = `${sessionStats.minutes} Minute(n)`;
+            const cats = sessionStats.categories.size > 0 ? Array.from(sessionStats.categories).join(', ') : "Keine Kategorien aufgerufen";
+            document.getElementById('res-categories').innerText = cats;
+            document.getElementById('res-total').innerText = sessionStats.totalAnswered;
+            document.getElementById('res-correct').innerText = sessionStats.totalCorrect;
+
+            const badge = document.getElementById('res-status-badge');
+            const correctCount = sessionStats.totalCorrect;
+            const actionsEl = document.getElementById('not-reached-actions');
+            const penaltyNotice = document.getElementById('penalty-notice');
+
+            penaltyNotice.classList.add('hidden');
+
+            if (correctCount >= 16) {
+                // HIER AUTOMATISCH 3 HUSEISEN GUTSCHREIBEN BEIM ERREICHEN DES ZIELS!
+                totalHorseshoes += 3;
+                localStorage.setItem('total_horseshoes', totalHorseshoes);
+                updateHorseshoeDisplay();
+
+                document.getElementById('result-title').innerText = "🎉 Glückwunsch! Lernzeit für heute erledigt";
+                badge.className = "inline-block px-4 py-1.5 rounded-full text-sm font-bold mb-4 shadow-sm bg-green-100 text-green-800 border border-green-300";
+                badge.innerText = "🎯 Ziel erreicht (+3 🧲 Hufeisen Bonus)!";
+                actionsEl.classList.add('hidden');
+            } else {
+                document.getElementById('result-title').innerText = "⏰ Lernzeit abgelaufen!";
+                badge.className = "inline-block px-4 py-1.5 rounded-full text-sm font-bold mb-4 shadow-sm bg-red-100 text-red-800 border border-red-300";
+                badge.innerText = "💪 Ziel nicht erreicht";
+                actionsEl.classList.remove('hidden');
+            }
+        }
+
+        function continueUntilTarget() {
+            isStrictDirectInputMode = true;
+            openCategory('Mathe', false);
+        }
+
+        function choosePenaltyBan() {
+            document.getElementById('not-reached-actions').classList.add('hidden');
+            document.getElementById('penalty-notice').classList.remove('hidden');
+            
+            const badge = document.getElementById('res-status-badge');
+            badge.className = "inline-block px-4 py-1.5 rounded-full text-sm font-bold mb-4 shadow-sm bg-red-600 text-white";
+            badge.innerText = "🚫 20 Uhr Verbot gewählt";
+        }
+
+        function openCategory(subject, isTestMode) {
+            isChallengeMode = false;
+            isTestModeActive = isTestMode;
+            currentSubject = subject;
+            currentQuestionIndex = 0;
+            
+            sessionStats.categories.add(subject + (isTestMode ? " (Test)" : " (Lernen)"));
+
+            let allQuestions = [...quizData[subject]];
+            allQuestions.sort(() => Math.random() - 0.5);
+
+            if (isTestMode) {
+                activeQuestions = allQuestions.slice(0, 10);
+                document.getElementById('quiz-subject-title').innerText = subject + " (Test)";
+            } else {
+                activeQuestions = allQuestions;
+                document.getElementById('quiz-subject-title').innerText = subject + " (Lernen)";
+            }
+
+            document.getElementById('challenge-joker-container').classList.add('hidden');
+            showScreen('screen-quiz');
+            loadQuestion();
+        }
+
+        function loadQuestion() {
+            if (isTestModeActive && currentQuestionIndex >= 10) {
+                showTestResult();
+                return;
+            }
+
+            if (isChallengeMode) {
+                if (challengeCorrectCount >= 15) {
+                    handleChallengeFinish(true);
+                    return;
+                }
+                if (currentQuestionIndex >= 20) {
+                    handleChallengeFinish(challengeCorrectCount >= 15);
+                    return;
+                }
+            } else {
+                if (currentQuestionIndex >= activeQuestions.length) {
+                    currentQuestionIndex = 0;
+                    activeQuestions.sort(() => Math.random() - 0.5);
+                }
+            }
+
+            const currentQ = activeQuestions[currentQuestionIndex];
+            
+            lastActivityTime = Date.now();
+
+            let counterText = isChallengeMode ? `Frage ${currentQuestionIndex + 1} von 20 (Richtige: ${challengeCorrectCount}/15)` : `Frage ${currentQuestionIndex + 1} von ${activeQuestions.length}`;
+            document.getElementById('question-counter').innerText = counterText;
+            document.getElementById('question-text').innerText = currentQ.question;
+
+            const btnHint = document.getElementById('btn-hint');
+            const hintBox = document.getElementById('hint-box');
+            hintBox.classList.add('hidden');
+
+            if (!isChallengeMode && currentSubject === 'Mathe' && currentQ.hint) {
+                btnHint.classList.remove('hidden');
+                document.getElementById('hint-text').innerText = currentQ.hint;
+            } else {
+                btnHint.classList.add('hidden');
+            }
+
+            const optionsContainer = document.getElementById('options-container');
+            const directInputContainer = document.getElementById('direct-input-container');
+
+            let isTextOrUnitTask = isChallengeMode || (currentSubject !== 'Mathe') || 
+                                   currentQ.question.includes("Ein") || 
+                                   currentQ.question.includes("Wie viel") || 
+                                   currentQ.question.includes("Kilogramm") || 
+                                   currentQ.question.includes("Meter") || 
+                                   currentQ.question.includes("Euro") || 
+                                   currentQ.question.includes("Gramm") || 
+                                   currentQ.question.includes("ml") || 
+                                   currentQ.question.includes("Liter") || 
+                                   (currentQ.options && currentQ.options.some(opt => opt.includes("€") || opt.includes("g") || opt.includes("m") || opt.includes("l") || opt.includes("Cent")));
+
+            if (isStrictDirectInputMode || !isTextOrUnitTask) {
+                optionsContainer.classList.add('hidden');
+                directInputContainer.classList.remove('hidden');
+                document.getElementById('quiz-user-input').value = '';
+                document.getElementById('quiz-feedback').innerText = '';
+            } else {
+                directInputContainer.classList.add('hidden');
+                optionsContainer.classList.remove('hidden');
+                optionsContainer.innerHTML = '';
+
+                let shuffledOptions = currentQ.options.map((opt, idx) => ({ text: opt, originalIndex: idx }));
+                shuffledOptions.sort(() => Math.random() - 0.5);
+
+                shuffledOptions.forEach((item) => {
+                    const button = document.createElement('button');
+                    button.className = "w-full bg-white border-2 border-indigo-100 hover:border-indigo-500 hover:bg-indigo-50 text-gray-700 font-semibold py-3 px-4 rounded-xl shadow-sm transition text-left flex items-center justify-between";
+                    button.innerHTML = `<span>${item.text}</span> <span class="text-indigo-400 font-bold">➔</span>`;
+                    button.onclick = () => {
+                        if (isSessionActive) resumeTimerOnTaskComplete();
+                        selectAnswer(item.originalIndex, currentQ.correct, item.text);
+                    };
+                    optionsContainer.appendChild(button);
+                });
+            }
+        }
+
+        function extractCleanNumber(str) {
+            if (!str) return "";
+            let match = str.replace(',', '.').match(/-?\d+(\.\d+)?/);
+            return match ? match[0] : str.trim().toLowerCase();
+        }
+
+        function checkDirectInputAnswer() {
+            if (isSessionActive) resumeTimerOnTaskComplete();
+
+            const currentQ = activeQuestions[currentQuestionIndex];
+            const userVal = document.getElementById('quiz-user-input').value.trim();
+            const feedbackEl = document.getElementById('quiz-feedback');
+            const correctText = currentQ.options[currentQ.correct];
+
+            if (!userVal) {
+                feedbackEl.innerText = "⚠️ Bitte gib eine Antwort ein!";
+                feedbackEl.className = "text-center text-sm font-bold mt-2 text-amber-600";
+                return;
+            }
+
+            sessionStats.totalAnswered++;
+            
+            let cleanUser = extractCleanNumber(userVal);
+            let cleanCorrect = extractCleanNumber(correctText);
+            const isCorrect = (cleanUser === cleanCorrect) || (userVal.toLowerCase() === correctText.toLowerCase());
+
+            if (isChallengeMode) {
+                if (isCorrect) {
+                    challengeCorrectCount++;
+                    appendToLiveLog(`[Challenge] ${currentQ.question}`, userVal, true);
+                    feedbackEl.innerText = "🎯 Richtig!";
+                    feedbackEl.className = "text-center text-sm font-bold mt-2 text-green-600";
+
+                    if (challengeCorrectCount >= 15) {
+                        setTimeout(() => handleChallengeFinish(true), 800);
+                        return;
+                    }
+                } else {
+                    challengeErrorsCount++;
+                    appendToLiveLog(`[Challenge] ${currentQ.question}`, userVal, false);
+                    feedbackEl.innerText = `❌ Falsch! Richtig wäre: ${correctText}`;
+                    feedbackEl.className = "text-center text-sm font-bold mt-2 text-red-600";
+
+                    if ((20 - currentQuestionIndex - 1) + challengeCorrectCount < 15) {
+                        setTimeout(() => handleChallengeFinish(false), 1200);
+                        return;
+                    }
+                }
+
+                setTimeout(() => {
+                    currentQuestionIndex++;
+                    loadQuestion();
+                }, 1000);
+            } else {
+                if (isCorrect) {
+                    sessionStats.totalCorrect++;
+                    appendToLiveLog(currentQ.question, userVal, true);
+                    
+                    feedbackEl.innerText = "🎯 Richtig!";
+                    feedbackEl.className = "text-center text-sm font-bold mt-2 text-green-600";
+
+                    if (isStrictDirectInputMode && sessionStats.totalCorrect >= 16) {
+                        setTimeout(showSuccessFinish, 800);
+                        return;
+                    }
+
+                    setTimeout(() => {
+                        currentQuestionIndex++;
+                        loadQuestion();
+                    }, 800);
+                } else {
+                    appendToLiveLog(currentQ.question, userVal, false);
+                    feedbackEl.innerText = `❌ Falsch! Richtig wäre: ${correctText}. Nächste Aufgabe...`;
+                    feedbackEl.className = "text-center text-sm font-bold mt-2 text-red-600";
+                    
+                    setTimeout(() => {
+                        currentQuestionIndex++;
+                        loadQuestion();
+                    }, 1200);
+                }
+            }
+        }
+
+        function showTestResult() {
+            showScreen('screen-result');
+            document.getElementById('btn-print-certificate').classList.add('hidden');
+            document.getElementById('res-time').innerText = "Freier Test";
+            document.getElementById('res-categories').innerText = currentSubject + " (Test)";
+            document.getElementById('res-total').innerText = "10";
+            document.getElementById('res-correct').innerText = `${sessionStats.totalCorrect} von 10`;
+
+            const badge = document.getElementById('res-status-badge');
+            const correctCount = sessionStats.totalCorrect;
+            const actionsEl = document.getElementById('not-reached-actions');
+            const penaltyNotice = document.getElementById('penalty-notice');
+
+            penaltyNotice.classList.add('hidden');
+
+            if (correctCount >= 16) {
+                totalHorseshoes += 3;
+                localStorage.setItem('total_horseshoes', totalHorseshoes);
+                updateHorseshoeDisplay();
+
+                document.getElementById('result-title').innerText = "🎉 Glückwunsch! Lernzeit für heute erledigt";
+                badge.className = "inline-block px-4 py-1.5 rounded-full text-sm font-bold mb-4 shadow-sm bg-green-100 text-green-800 border border-green-300";
+                badge.innerText = "🌟 Hervorragend bestanden (+3 🧲 Bonus)!";
+                actionsEl.classList.add('hidden');
+            } else {
+                document.getElementById('result-title').innerText = "📊 Test-Ergebnis";
+                badge.className = "inline-block px-4 py-1.5 rounded-full text-sm font-bold mb-4 shadow-sm bg-red-100 text-red-800 border border-red-300";
+                badge.innerText = "💪 Ziel nicht erreicht";
+                actionsEl.classList.remove('hidden');
+            }
+        }
+
+        function toggleHint() {
+            const hintBox = document.getElementById('hint-box');
+            hintBox.classList.toggle('hidden');
+        }
+
+        function selectAnswer(selectedIndex, correctIndex, selectedText) {
+            resumeTimerOnTaskComplete();
+
+            const currentQ = activeQuestions[currentQuestionIndex];
+            const isCorrect = (selectedIndex === correctIndex);
+
+            if (isChallengeMode) {
+                if (isCorrect) {
+                    challengeCorrectCount++;
+                    appendToLiveLog(`[Challenge] ${currentQ.question}`, selectedText, true);
+                    
+                    if (challengeCorrectCount >= 15) {
+                        setTimeout(() => handleChallengeFinish(true), 400);
+                        return;
+                    }
+                } else {
+                    challengeErrorsCount++;
+                    appendToLiveLog(`[Challenge] ${currentQ.question}`, selectedText, false);
+
+                    if ((20 - currentQuestionIndex - 1) + challengeCorrectCount < 15) {
+                        setTimeout(() => handleChallengeFinish(false), 800);
+                        return;
+                    }
+                }
+                
+                currentQuestionIndex++;
+                loadQuestion();
+            } else {
+                sessionStats.totalAnswered++;
+                
+                if (isCorrect) {
+                    sessionStats.totalCorrect++;
+                    appendToLiveLog(currentQ.question, selectedText, true);
+
+                    currentQuestionIndex++;
+                    loadQuestion();
+                } else {
+                    appendToLiveLog(currentQ.question, selectedText, false);
+                    currentQuestionIndex++;
+                    loadQuestion();
+                }
+            }
+        }
+
+        function startPathGame(gameKey) {
+            isChallengeMode = false;
+            isTestModeActive = false;
+            isStrictDirectInputMode = false;
+            currentGameKey = gameKey;
+            sessionStats.categories.add(gameKey === 'horse' ? "Rechen-Pferderennen" : "Mathe Rallye");
+
+            if (gameKey === 'horse') {
+                const saved = localStorage.getItem('horse_completed_level');
+                if (saved !== null) {
+                    currentHorseLevel = parseInt(saved);
+                }
+                if (currentHorseLevel >= horseLevels.length) {
+                    currentHorseLevel = 0;
+                }
+                activePathSteps = [...horseLevels[currentHorseLevel]];
+                activePathSteps.sort(() => Math.random() - 0.5);
+
+                document.getElementById('path-title').innerText = `Rechen-Pferderennen (Level ${currentHorseLevel + 1})`;
+                document.getElementById('path-level-indicator').style.display = 'inline-block';
+                document.getElementById('path-level-indicator').innerText = `Level ${currentHorseLevel + 1}`;
+                currentPathIndex = 0;
+                loadPathStep();
+            } else {
+                shuffledRallySteps = [...rallyStepsData];
+                shuffledRallySteps.sort(() => Math.random() - 0.5);
+
+                activePathSteps = shuffledRallySteps;
+                document.getElementById('path-title').innerText = "Mathe Rallye (100 Aufgaben)";
+                document.getElementById('path-level-indicator').style.display = 'inline-block';
+                
+                const savedRallyIndex = localStorage.getItem('rally_checkpoint_index');
+                if (savedRallyIndex !== null) {
+                    rallyCurrentIndex = Math.floor(parseInt(savedRallyIndex) / 5) * 5;
+                } else {
+                    rallyCurrentIndex = 0;
+                }
+
+                currentPathIndex = rallyCurrentIndex;
+                loadRallyStep();
+            }
+
+            showScreen('screen-path');
+        }
+
+        function loadPathStep() {
+            if (currentGameKey === 'horse') {
+                const step = activePathSteps[currentPathIndex];
+                document.getElementById('path-step-counter').innerText = `Aufgabe ${currentPathIndex + 1} von ${activePathSteps.length}`;
+                document.getElementById('path-task-text').innerText = `${step.display} = ?`;
+                document.getElementById('path-user-input').value = '';
+                document.getElementById('path-feedback').innerText = '';
+            } else {
+                loadRallyStep();
+            }
+        }
+
+        function loadRallyStep() {
+            if (rallyCurrentIndex >= activePathSteps.length) {
+                showRallyFinished();
+                return;
+            }
+            const step = activePathSteps[rallyCurrentIndex];
+            document.getElementById('path-step-counter').innerText = `Aufgabe ${rallyCurrentIndex + 1} von 100`;
+            document.getElementById('path-level-indicator').innerText = `Fortschritt: ${rallyCurrentIndex}/100`;
+            document.getElementById('path-task-text').innerText = `${step.display} = ?`;
+            document.getElementById('path-user-input').value = '';
+            document.getElementById('path-feedback').innerText = '';
+        }
+
+        function checkPathStep() {
+            const userInputVal = document.getElementById('path-user-input').value;
+            const userInput = parseInt(userInputVal);
+            const feedbackEl = document.getElementById('path-feedback');
+
+            if (isNaN(userInput)) {
+                feedbackEl.innerText = "⚠️ Bitte gib eine Zahl ein!";
+                feedbackEl.className = "text-center text-sm font-bold mt-2 text-amber-600";
+                return;
+            }
+
+            if (currentGameKey === 'horse') {
+                const step = activePathSteps[currentPathIndex];
+                sessionStats.totalAnswered++;
+                appendToLiveLog(`${step.display} = ?`, userInputVal, userInput === step.target);
+
+                if (userInput === step.target) {
+                    sessionStats.totalCorrect++;
+                    currentPathIndex++;
+
+                    if (currentPathIndex < activePathSteps.length) {
+                        feedbackEl.innerText = "🎯 Richtig! Weiter zur nächsten Station...";
+                        feedbackEl.className = "text-center text-sm font-bold mt-2 text-green-600";
+                        setTimeout(loadPathStep, 800);
+                    } else {
+                        showPathResult();
+                    }
+                } else {
+                    feedbackEl.innerText = "❌ Das stimmt noch nicht. Denk an den Rechenweg!";
+                    feedbackEl.className = "text-center text-sm font-bold mt-2 text-red-600";
+                }
+            } else {
+                const step = activePathSteps[rallyCurrentIndex];
+                const isCorrect = (userInput === step.target);
+                sessionStats.totalAnswered++;
+
+                appendToLiveLog(`[Rallye ${rallyCurrentIndex + 1}] ${step.display} = ?`, userInputVal, isCorrect);
+
+                if (isCorrect) {
+                    sessionStats.totalCorrect++;
+                    
+                    let earned = calculateHorseshoesEarned(rallyCurrentIndex + 1);
+                    totalHorseshoes += earned;
+                    localStorage.setItem('total_horseshoes', totalHorseshoes);
+                    updateHorseshoeDisplay();
+
+                    rallyCurrentIndex++;
+
+                    if (rallyCurrentIndex % 5 === 0) {
+                        localStorage.setItem('rally_checkpoint_index', rallyCurrentIndex);
+                    }
+
+                    if (rallyCurrentIndex < activePathSteps.length) {
+                        let bonusMsg = (rallyCurrentIndex === 100) ? " 🎉 FINALE! +1000 Hufeisen!" : ` +${earned} 🧲 Hufeisen!`;
+                        feedbackEl.innerText = `🎯 Richtig!` + bonusMsg;
+                        feedbackEl.className = "text-center text-sm font-bold mt-2 text-green-600";
+                        setTimeout(loadRallyStep, 800);
+                    } else {
+                        showRallyFinished();
+                    }
+                } else {
+                    feedbackEl.innerText = "❌ Das stimmt noch nicht. Versuch es nochmal!";
+                    feedbackEl.className = "text-center text-sm font-bold mt-2 text-red-600";
+                }
+            }
+        }
+
+        function showRallyFinished() {
+            rallyCurrentIndex = 0;
+            localStorage.setItem('rally_checkpoint_index', 0);
+            
+            showScreen('screen-result');
+            document.getElementById('result-title').innerText = "🏆 Mathe-Rallye Meister!";
+            const badge = document.getElementById('res-status-badge');
+            badge.className = "inline-block px-4 py-1.5 rounded-full text-sm font-bold mb-4 shadow-sm bg-amber-100 text-amber-800 border border-amber-300";
+            badge.innerText = `✨ Du hast alle 100 Aufgaben geschafft und mega viele Hufeisen gesammelt!`;
+
+            document.getElementById('res-time').innerText = "Rallye beendet";
+            document.getElementById('res-categories').innerText = "Mathe Rallye (100 Aufgaben)";
+            document.getElementById('res-total').innerText = "100";
+            document.getElementById('res-correct').innerText = "100 von 100";
+            document.getElementById('btn-print-certificate').classList.add('hidden');
+            document.getElementById('not-reached-actions').classList.add('hidden');
+            document.getElementById('penalty-notice').classList.add('hidden');
+        }
+
+        function showPathResult() {
+            if (currentGameKey === 'horse') {
+                latestFinishedHorseLevel = currentHorseLevel + 1;
+                currentHorseLevel++;
+                localStorage.setItem('horse_completed_level', currentHorseLevel);
+
+                showScreen('screen-result');
+                document.getElementById('result-title').innerText = `🎉 Level ${latestFinishedHorseLevel} geschafft!`;
+                
+                const badge = document.getElementById('res-status-badge');
+                badge.className = "inline-block px-4 py-1.5 rounded-full text-sm font-bold mb-4 shadow-sm bg-purple-100 text-purple-800 border border-purple-300";
+                badge.innerText = `🐎 Du hast das Pferde-Rennen Level ${latestFinishedHorseLevel} gemeistert!`;
+
+                document.getElementById('res-time').innerText = "Freies Spiel";
+                document.getElementById('res-categories').innerText = `Rechen-Pferderennen (Level ${latestFinishedHorseLevel})`;
+                document.getElementById('res-total').innerText = activePathSteps.length;
+                document.getElementById('res-correct').innerText = `${activePathSteps.length} von ${activePathSteps.length}`;
+
+                const certBtn = document.getElementById('btn-print-certificate');
+                certBtn.classList.remove('hidden');
+                document.getElementById('not-reached-actions').classList.add('hidden');
+                document.getElementById('penalty-notice').classList.add('hidden');
+                document.getElementById('cert-btn-text').innerText = `Urkunde für Level ${latestFinishedHorseLevel} drucken`;
+            }
+        }
+
+        function returnToMenu() {
+            isChallengeMode = false;
+            isTestModeActive = false;
+            isStrictDirectInputMode = false;
+            currentGameKey = '';
+            document.getElementById('challenge-joker-container').classList.add('hidden');
+            showScreen('screen-home');
+        }
+
+        function resetApp() {
+            isChallengeMode = false;
+            isTestModeActive = false;
+            isSessionActive = false;
+            isStrictDirectInputMode = false;
+            currentGameKey = '';
+            if (globalTimerInterval) clearInterval(globalTimerInterval);
+            const homeTimer = document.getElementById('home-timer-display');
+            if (homeTimer) homeTimer.classList.add('hidden');
+            document.getElementById('session-status').innerText = "Wähle eine Lernzeit oder übe frei unten:";
+            document.getElementById('challenge-joker-container').classList.add('hidden');
+            showScreen('screen-home');
+        }
+    </script>
+</body>
+</html>
